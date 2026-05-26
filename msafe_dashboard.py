@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from io import BytesIO
-
+ 
 # ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="MSafe Inside Sales Dashboard",
@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
+ 
 # ── CUSTOM CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
@@ -20,7 +20,7 @@ st.markdown("""
 [data-testid="stSidebar"] { background-color: #0F2044; }
 [data-testid="stSidebar"] * { color: white !important; }
 [data-testid="stSidebar"] .stMultiSelect > div > div { background: #1B3A6B; }
-
+ 
 .kpi-block {
     background: white;
     border-radius: 10px;
@@ -39,7 +39,7 @@ st.markdown("""
 .kpi-value.red   { color: #B91C1C; }
 .kpi-value.amber { color: #92400E; }
 .kpi-value.blue  { color: #1E40AF; }
-
+ 
 .section-header {
     background: #0F2044;
     color: white;
@@ -52,7 +52,7 @@ st.markdown("""
 .data-note { font-size: 11px; color: #94A3B8; font-style: italic; margin-top: 4px; }
 </style>
 """, unsafe_allow_html=True)
-
+ 
 # ── CONSTANTS ─────────────────────────────────────────────────────────────────
 LOST_S = ['Not-Interested','Not Search Our Product','Regret','Other Department Working',
           'Wrong Number','No Response on RNR','Already Purchased','Quoted Order Lost']
@@ -61,7 +61,7 @@ HIGH_S = ['Quoted In Follow Up','Quoted Order In Pipeline','Quote In Progress',
           'Interested Quote Sent','Quoted Not Picking Call','Quoted Project On Hold',
           'Quoted Order Won And Executed','Quoted Order Lost']
 ADMIN  = ['msafe947362','50988-Surbhi']
-
+ 
 SRC_MAP = {
     'Just Dial':'JustDial','Justdial':'JustDial',
     'Paid clasifieds':'IndiaMart','Paid classifieds':'IndiaMart','Indiamart':'IndiaMart',
@@ -71,10 +71,10 @@ SRC_MAP = {
     'SEO Landing Pages (Generic)':'Google Ads','Google-Ad (Generic)':'Google Ads',
     'Advertisement':'Other','Aajjo':'Other',
 }
-
+ 
 MAIN_SOURCES = ['JustDial','IndiaMart','IVR Call','Existing Client',
                 'Ex-Client Ref.','Facebook','Website','Google Ads','Phone','Email marketing']
-
+ 
 # ── DATA LOADER ───────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner="Loading CRM data…")
 def load_data(file_bytes):
@@ -90,12 +90,12 @@ def load_data(file_bytes):
     if 'CreatedOn' in df.columns:
         df['CreatedOn'] = pd.to_datetime(df['CreatedOn'], errors='coerce')
     return df
-
+ 
 def real_fill_pct(series):
     filled = series.apply(
         lambda x: str(x).strip() not in ['','0','0.0','nan','None','NaT','<NA>']).sum()
     return round(filled / len(series) * 100) if len(series) > 0 else 0
-
+ 
 # ── STYLING HELPERS ───────────────────────────────────────────────────────────
 def color_winrate(val):
     try:
@@ -105,7 +105,7 @@ def color_winrate(val):
         elif p == 0:return 'background-color: #FEF2F2; color: #B91C1C; font-weight: 600'
         return ''
     except: return ''
-
+ 
 def color_hygiene(val):
     try:
         s = str(val).replace('%','')
@@ -115,7 +115,7 @@ def color_hygiene(val):
         elif p >= 30:return 'background-color: #FFFBEB; color: #92400E'
         return 'background-color: #FEF2F2; color: #B91C1C'
     except: return ''
-
+ 
 def color_lossrate(val):
     try:
         p = float(str(val).replace('%',''))
@@ -123,24 +123,24 @@ def color_lossrate(val):
         elif p >= 50:return 'background-color: #FFFBEB; color: #92400E'
         return ''
     except: return ''
-
+ 
 def to_excel(df_dict):
     buf = BytesIO()
     with pd.ExcelWriter(buf, engine='openpyxl') as w:
         for sheet, df in df_dict.items():
             df.to_excel(w, sheet_name=sheet[:31], index=True)
     return buf.getvalue()
-
+ 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 st.sidebar.markdown("## 📊 MSafe CRM Dashboard")
 st.sidebar.markdown("---")
-
+ 
 uploaded = st.sidebar.file_uploader(
     "Upload CRM export (.xls / .xlsx)",
     type=['xls','xlsx'],
     help="Drop your KIT19 export here to refresh the data"
 )
-
+ 
 if not uploaded:
     st.markdown("""
     <div style='text-align:center; padding:80px 40px;'>
@@ -155,23 +155,23 @@ if not uploaded:
     </div>
     """, unsafe_allow_html=True)
     st.stop()
-
+ 
 # Load
 df_raw = load_data(uploaded.read())
 reps_df = df_raw[~df_raw['is_admin']].copy()
-
+ 
 # Sidebar filters
 st.sidebar.markdown("### Filters")
-
+ 
 all_reps = sorted(reps_df['Rep'].dropna().unique().tolist())
 sel_reps = st.sidebar.multiselect("Rep", all_reps, default=all_reps)
-
+ 
 all_sources = sorted(reps_df['Source_group'].dropna().unique().tolist())
 sel_sources = st.sidebar.multiselect("Source", all_sources, default=all_sources)
-
+ 
 all_stages = ['Active','Won','Lost']
 sel_stages = st.sidebar.multiselect("Stage", all_stages, default=all_stages)
-
+ 
 # Date filter
 if 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any():
     min_d = reps_df['CreatedOn'].min().date()
@@ -180,11 +180,11 @@ if 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any():
                                         min_value=min_d, max_value=max_d)
 else:
     date_range = None
-
+ 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Total leads:** {len(df_raw):,}")
 st.sidebar.markdown(f"**Filtered reps:** {len(sel_reps)} of {len(all_reps)}")
-
+ 
 # Apply filters
 filt = reps_df.copy()
 if sel_reps:    filt = filt[filt['Rep'].isin(sel_reps)]
@@ -195,7 +195,7 @@ if date_range and len(date_range) == 2 and 'CreatedOn' in filt.columns:
         (filt['CreatedOn'].dt.date >= date_range[0]) &
         (filt['CreatedOn'].dt.date <= date_range[1])
     ]
-
+ 
 # ── HEADER ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div style='background:#0F2044; padding:18px 24px; border-radius:10px; margin-bottom:16px;
@@ -208,7 +208,7 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
+ 
 # ── KPI CARDS ─────────────────────────────────────────────────────────────────
 total = len(filt)
 won   = (filt['Stage']=='Won').sum()
@@ -220,7 +220,7 @@ wr    = round(won/total*100,1) if total else 0
 q2w   = round(won/high*100,1)  if high  else 0
 ec_w  = filt[filt['Source']=='Existing Client']
 ec_wr = round((ec_w['Stage']=='Won').sum() / len(ec_w) * 100, 1) if len(ec_w) else 0
-
+ 
 k1,k2,k3,k4,k5,k6,k7,k8,k9 = st.columns(9)
 def kpi(col, label, value, cls=''):
     col.markdown(f"""
@@ -228,7 +228,7 @@ def kpi(col, label, value, cls=''):
         <div class='kpi-label'>{label}</div>
         <div class='kpi-value {cls}'>{value}</div>
     </div>""", unsafe_allow_html=True)
-
+ 
 kpi(k1,'Total Leads', f'{total:,}')
 kpi(k2,'Won',         f'{won:,}',   'green')
 kpi(k3,'Lost',        f'{lost:,}',  'red')
@@ -238,9 +238,9 @@ kpi(k6,'Quote→Win',   f'{q2w}%',   'green')
 kpi(k7,'High Intent', f'{high:,}',  'amber')
 kpi(k8,'Cold CB/RNR', f'{cold:,}',  'red')
 kpi(k9,'ExClient Win',f'{ec_wr}%', 'green')
-
+ 
 st.markdown("<br>", unsafe_allow_html=True)
-
+ 
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📋 Leads by Rep & Source",
@@ -249,7 +249,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🔄 Pipeline & Lost",
     "📈 Charts"
 ])
-
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 1 — REP × SOURCE CROSS-TAB
 # ══════════════════════════════════════════════════════════════════════════════
@@ -259,13 +259,13 @@ with tab1:
     st.markdown("<p class='data-note'>How many leads each rep receives from each source. "
                 "Green cells = quality source (Existing Client, Ex-Client Ref.)</p>",
                 unsafe_allow_html=True)
-
+ 
     if total == 0:
         st.info("No data for current filters.")
     else:
         # Build pivot
         pivot = pd.crosstab(filt['Rep'], filt['Source_group'], margins=True, margins_name='TOTAL')
-
+ 
         # Reorder columns: main sources first, then Other, then TOTAL
         preferred = ['JustDial','IndiaMart','IVR Call','Existing Client',
                      'Ex-Client Ref.','Facebook','Website','Google Ads','Phone',
@@ -274,7 +274,7 @@ with tab1:
         ordered += [c for c in pivot.columns if c not in ordered and c != 'TOTAL']
         if 'TOTAL' in pivot.columns: ordered.append('TOTAL')
         pivot = pivot[ordered]
-
+ 
         # Style: green for quality sources
         def style_pivot(df):
             styles = pd.DataFrame('', index=df.index, columns=df.columns)
@@ -290,17 +290,17 @@ with tab1:
             if 'TOTAL' in df.index:
                 styles.loc['TOTAL'] = 'background-color:#0F2044; color:white; font-weight:700'
             return styles
-
+ 
         styled = pivot.style.apply(style_pivot, axis=None).format(
             lambda x: '' if x==0 else f'{x:,}')
-
+ 
         st.dataframe(styled, use_container_width=True, height=450)
-
+ 
         # Download
         csv = pivot.to_csv()
         st.download_button("⬇ Download table (CSV)", csv,
                            file_name="rep_source_breakdown.csv", mime="text/csv")
-
+ 
         # Source share bar (stacked)
         st.markdown("<div class='section-header'>Source Distribution by Rep</div>",
                     unsafe_allow_html=True)
@@ -313,14 +313,14 @@ with tab1:
                           legend_title='Source', margin=dict(l=0,r=0,t=10,b=0),
                           font_family='Calibri')
         st.plotly_chart(fig, use_container_width=True)
-
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — REP PERFORMANCE
 # ══════════════════════════════════════════════════════════════════════════════
 with tab2:
     st.markdown("<div class='section-header'>Rep Performance — Active / Won / Lost</div>",
                 unsafe_allow_html=True)
-
+ 
     if total == 0:
         st.info("No data for current filters.")
     else:
@@ -333,7 +333,7 @@ with tab2:
         awl['Win %']  = (awl['Won']  / awl['Total'] * 100).round(1).astype(str) + '%'
         awl['Loss %'] = (awl['Lost'] / awl['Total'] * 100).round(1).astype(str) + '%'
         awl = awl.sort_values('Won', ascending=False)
-
+ 
         # Totals row
         tot_row = pd.DataFrame([{
             'Rep':'TOTAL', 'Total':awl['Total'].sum(), 'Active':awl['Active'].sum(),
@@ -342,7 +342,7 @@ with tab2:
             'Loss %':f"{round(awl['Lost'].sum()/awl['Total'].sum()*100,1)}%",
         }])
         awl_disp = pd.concat([awl, tot_row], ignore_index=True).set_index('Rep')
-
+ 
         def style_awl(df):
             styles = pd.DataFrame('', index=df.index, columns=df.columns)
             for idx in df.index:
@@ -356,14 +356,14 @@ with tab2:
                 styles.loc[idx,'Win %']  = color_winrate(df.loc[idx,'Win %'])
                 styles.loc[idx,'Loss %'] = color_lossrate(df.loc[idx,'Loss %'])
             return styles
-
+ 
         st.dataframe(
             awl_disp.style.apply(style_awl, axis=None).format({'Total':'{:,}','Active':'{:,}','Won':'{:,}','Lost':'{:,}'}),
             use_container_width=True, height=450)
-
+ 
         st.download_button("⬇ Download (CSV)", awl_disp.to_csv(),
                            file_name="rep_performance.csv", mime="text/csv")
-
+ 
         # Win rate bar chart
         fig2 = px.bar(awl[awl['Rep']!='TOTAL'],
                       x='Rep', y='Won',
@@ -376,7 +376,7 @@ with tab2:
                            font_family='Calibri', coloraxis_showscale=False)
         fig2.update_traces(textposition='outside')
         st.plotly_chart(fig2, use_container_width=True)
-
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 3 — CRM HYGIENE
 # ══════════════════════════════════════════════════════════════════════════════
@@ -386,7 +386,7 @@ with tab3:
     st.markdown("<p class='data-note'>"
                 "🟢 ≥70% filled &nbsp;&nbsp; 🟡 30–70% &nbsp;&nbsp; 🔴 &lt;30%"
                 "</p>", unsafe_allow_html=True)
-
+ 
     HYGIENE_FIELDS = {
         'Product':    'product_name',
         'Biz Type':   'Q_Type',
@@ -394,7 +394,7 @@ with tab3:
         'Followup Date':'FollowupDate',
         'Quote Value':'quotation_total_amount',
     }
-
+ 
     if total == 0:
         st.info("No data for current filters.")
     else:
@@ -415,7 +415,7 @@ with tab3:
                 except: pass
             row['Score'] = f"{round(np.mean(pcts))}%" if pcts else '—'
             rows.append(row)
-
+ 
         # Overall row
         overall = {'Rep':'OVERALL', 'Leads': len(filt)}
         for label, field in HYGIENE_FIELDS.items():
@@ -430,9 +430,9 @@ with tab3:
             except: pass
         overall['Score'] = f"{round(np.mean(pcts))}%" if pcts else '—'
         rows.append(overall)
-
+ 
         hyg_df = pd.DataFrame(rows).set_index('Rep')
-
+ 
         def style_hyg(df):
             styles = pd.DataFrame('', index=df.index, columns=df.columns)
             for idx in df.index:
@@ -443,32 +443,35 @@ with tab3:
                     if col in ('Leads',): continue
                     styles.loc[idx, col] = color_hygiene(df.loc[idx, col])
             return styles
-
+ 
         st.dataframe(
             hyg_df.style.apply(style_hyg, axis=None),
             use_container_width=True, height=450)
-
+ 
         st.download_button("⬇ Download (CSV)", hyg_df.to_csv(),
                            file_name="crm_hygiene.csv", mime="text/csv")
-
+ 
         # Heatmap of hygiene
         st.markdown("<div class='section-header'>Hygiene Heatmap</div>",
                     unsafe_allow_html=True)
         heat_data = hyg_df.drop(index='OVERALL', errors='ignore').drop(columns=['Leads','Score'], errors='ignore').copy()
-        heat_num = heat_data.applymap(lambda v: float(v.replace('%','')) if '%' in str(v) else 0)
+ 
+        # FIX: use .map() instead of deprecated .applymap(), and safely handle all value types
+        heat_num = heat_data.map(lambda v: float(str(v).replace('%','')) if v is not None and str(v) not in ['','nan','—'] else 0)
+ 
         fig3 = px.imshow(heat_num, color_continuous_scale='RdYlGn',
                          zmin=0, zmax=100, aspect='auto',
                          text_auto=True, height=380)
         fig3.update_layout(margin=dict(l=0,r=0,t=10,b=0),
                            paper_bgcolor='#F8FAFC', font_family='Calibri')
         st.plotly_chart(fig3, use_container_width=True)
-
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 4 — PIPELINE & LOST REASONS
 # ══════════════════════════════════════════════════════════════════════════════
 with tab4:
     c_pipe, c_lost = st.columns(2)
-
+ 
     with c_pipe:
         st.markdown("<div class='section-header'>Active Pipeline Breakdown</div>",
                     unsafe_allow_html=True)
@@ -481,7 +484,7 @@ with tab4:
                        .reset_index()
                        .rename(columns={'FollowupStatus':'Status','count':'Count'}))
             pipe_df['%'] = (pipe_df['Count'] / pipe_df['Count'].sum() * 100).round(1).astype(str) + '%'
-
+ 
             def color_pipe(row):
                 s = row['Status']
                 if 'RNR' in s or 'Call Back' in s:
@@ -491,11 +494,11 @@ with tab4:
                 elif 'Interested' in s or 'Catalogue' in s:
                     return ['background-color:#FFFBEB']*len(row)
                 return ['']*len(row)
-
+ 
             st.dataframe(
                 pipe_df.style.apply(color_pipe, axis=1),
                 use_container_width=True, hide_index=True, height=400)
-
+ 
             # Donut
             fig4 = px.pie(pipe_df.head(8), values='Count', names='Status',
                           hole=0.5, height=300,
@@ -505,7 +508,7 @@ with tab4:
                                legend=dict(font=dict(size=10)),
                                font_family='Calibri')
             st.plotly_chart(fig4, use_container_width=True)
-
+ 
     with c_lost:
         st.markdown("<div class='section-header'>Lost Reasons</div>",
                     unsafe_allow_html=True)
@@ -518,13 +521,14 @@ with tab4:
                        .reset_index()
                        .rename(columns={'FollowupStatus':'Reason','count':'Count'}))
             lost_df['%'] = (lost_df['Count'] / lost_df['Count'].sum() * 100).round(1).astype(str) + '%'
-
+ 
+            # FIX: use .map() instead of deprecated .applymap()
             st.dataframe(
-                lost_df.style.applymap(
+                lost_df.style.map(
                     lambda _: 'background-color:#FEF2F2; color:#B91C1C; font-weight:600',
                     subset=['Count']),
                 use_container_width=True, hide_index=True, height=400)
-
+ 
             fig5 = px.bar(lost_df, x='Count', y='Reason', orientation='h',
                           height=300, text='Count',
                           color='Count',
@@ -535,7 +539,7 @@ with tab4:
                                coloraxis_showscale=False, font_family='Calibri')
             fig5.update_traces(textposition='outside')
             st.plotly_chart(fig5, use_container_width=True)
-
+ 
         # Source win rate
         st.markdown("<div class='section-header'>Source Win Rate</div>",
                     unsafe_allow_html=True)
@@ -545,7 +549,7 @@ with tab4:
         ).reset_index()
         sw['Win %'] = (sw['Won']/sw['Leads']*100).round(1)
         sw = sw[sw['Leads']>3].sort_values('Win %', ascending=True)
-
+ 
         fig6 = px.bar(sw, x='Win %', y='Source_group', orientation='h',
                       height=280, text='Win %',
                       color='Win %',
@@ -556,13 +560,13 @@ with tab4:
                            coloraxis_showscale=False, font_family='Calibri')
         fig6.update_traces(texttemplate='%{text}%', textposition='outside')
         st.plotly_chart(fig6, use_container_width=True)
-
+ 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 5 — CHARTS
 # ══════════════════════════════════════════════════════════════════════════════
 with tab5:
     c1, c2 = st.columns(2)
-
+ 
     with c1:
         st.markdown("<div class='section-header'>Won vs Lost vs Active by Rep</div>",
                     unsafe_allow_html=True)
@@ -575,7 +579,7 @@ with tab5:
                            margin=dict(l=0,r=0,t=10,b=0), font_family='Calibri',
                            xaxis_tickangle=-30)
         st.plotly_chart(fig7, use_container_width=True)
-
+ 
     with c2:
         st.markdown("<div class='section-header'>Lead Volume by Source</div>",
                     unsafe_allow_html=True)
@@ -586,9 +590,9 @@ with tab5:
         fig8.update_layout(margin=dict(l=0,r=0,t=10,b=30),
                            paper_bgcolor='#F8FAFC', font_family='Calibri')
         st.plotly_chart(fig8, use_container_width=True)
-
+ 
     c3, c4 = st.columns(2)
-
+ 
     with c3:
         st.markdown("<div class='section-header'>Win Rate by Rep</div>",
                     unsafe_allow_html=True)
@@ -604,7 +608,7 @@ with tab5:
                            coloraxis_showscale=False, font_family='Calibri')
         fig9.update_traces(texttemplate='%{text}%', textposition='outside')
         st.plotly_chart(fig9, use_container_width=True)
-
+ 
     with c4:
         st.markdown("<div class='section-header'>Stage Distribution</div>",
                     unsafe_allow_html=True)
@@ -619,7 +623,7 @@ with tab5:
                             paper_bgcolor='#F8FAFC', height=320,
                             font_family='Calibri', showlegend=False)
         st.plotly_chart(fig10, use_container_width=True)
-
+ 
     # Full raw data
     st.markdown("<div class='section-header'>Raw Lead Data (filtered)</div>",
                 unsafe_allow_html=True)
@@ -630,7 +634,7 @@ with tab5:
     st.download_button("⬇ Download filtered raw data (CSV)",
                        filt[show_cols].to_csv(index=False),
                        file_name="filtered_leads.csv", mime="text/csv")
-
+ 
 # ── FOOTER ────────────────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(
