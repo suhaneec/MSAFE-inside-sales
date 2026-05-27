@@ -13,6 +13,12 @@ st.set_page_config(
 st.markdown("""
 <style>
  
+/* ══ FORCE WHITE TEXT IN DARK HEADER ════════════════════════════════════ */
+div[style*="background:#0F2044"] span,
+div[style*="background:#0F2044"] * {
+    color: #FFFFFF !important;
+}
+ 
 /* ══ GLOBAL FONT SIZE & TEXT COLOR ══════════════════════════════════════ */
 html, body, [class*="css"], .stApp {
     font-size: 15px !important;
@@ -379,10 +385,10 @@ if date_range and len(date_range)==2 and 'CreatedOn' in filt.columns:
 st.markdown("""
 <div style='background:#0F2044; padding:18px 28px; border-radius:12px;
             margin-bottom:16px; display:flex; align-items:center; gap:18px;'>
-    <span style='color:#FFFFFF; font-size:22px; font-weight:800; letter-spacing:0.01em;'>
+    <span style='color:#FFFFFF !important; font-size:22px; font-weight:800; letter-spacing:0.01em;'>
         MSafe Equipments — Inside Sales Dashboard
     </span>
-    <span style='color:#93C5FD; font-size:14px; font-weight:600;'>KIT19 CRM</span>
+    <span style='color:#93C5FD !important; font-size:14px; font-weight:600;'>KIT19 CRM</span>
 </div>
 """, unsafe_allow_html=True)
  
