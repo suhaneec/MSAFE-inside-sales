@@ -105,6 +105,36 @@ section[data-testid="stSidebar"] .stDateInput input {
 .sub-note { font-size: 11px; color: #64748B; font-style: italic; margin: 0 0 6px 0; }
 [data-testid="stAlert"] { color: #0F172A !important; }
  
+/* ══ DATAFRAME — force dark readable text ════════════════════════════════ */
+[data-testid="stDataFrame"] {
+    font-size: 14px !important;
+    color: #0F172A !important;
+}
+/* Column headers */
+[data-testid="stDataFrame"] th,
+[data-testid="stDataFrame"] [role="columnheader"],
+[data-testid="stDataFrame"] [role="columnheader"] *  {
+    background-color: #1B3A6B !important;
+    color: white !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+}
+/* Data cells */
+[data-testid="stDataFrame"] td,
+[data-testid="stDataFrame"] [role="gridcell"],
+[data-testid="stDataFrame"] [role="gridcell"] * {
+    color: #0F172A !important;
+    font-size: 13px !important;
+}
+/* Row index */
+[data-testid="stDataFrame"] [role="rowheader"],
+[data-testid="stDataFrame"] [role="rowheader"] * {
+    color: #0F172A !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    background-color: #F1F5F9 !important;
+}
+ 
 </style>
 """, unsafe_allow_html=True)
  
@@ -323,7 +353,7 @@ with tab1:
  
         fmt = lambda x: '' if x==0 else f'{x:,}'
         st.dataframe(
-            pivot.style.apply(style_pivot, axis=None).format(fmt),
+            pivot.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_pivot, axis=None).format(fmt),
             use_container_width=True, height=460)
  
         st.download_button("⬇ Download CSV", pivot.to_csv(),
@@ -351,7 +381,7 @@ with tab1:
             return styles
  
         st.dataframe(
-            sw.style.apply(style_sw, axis=None).format({'Leads':'{:,}','Won':'{:,}','Lost':'{:,}','Active':'{:,}'}),
+            sw.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_sw, axis=None).format({'Leads':'{:,}','Won':'{:,}','Lost':'{:,}','Active':'{:,}'}),
             use_container_width=True, height=320)
  
 # ════════════════════════════════════════════════════════════════════════════
@@ -403,7 +433,7 @@ with tab2:
             return styles
  
         st.dataframe(
-            awl_d.style.apply(style_awl, axis=None)
+            awl_d.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_awl, axis=None)
                        .format({'Total':'{:,}','Active':'{:,}','Won':'{:,}','Lost':'{:,}'}),
             use_container_width=True, height=500)
  
@@ -476,7 +506,7 @@ with tab3:
             return styles
  
         st.dataframe(
-            hyg.style.apply(style_hyg, axis=None),
+            hyg.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_hyg, axis=None),
             use_container_width=True, height=500)
  
         st.download_button("⬇ Download CSV", hyg.to_csv(),
@@ -530,7 +560,7 @@ with tab4:
                 return styles
  
             st.dataframe(
-                pipe_df.style.apply(style_pipe, axis=None)
+                pipe_df.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_pipe, axis=None)
                              .format({'Count':'{:,}'}),
                 use_container_width=True, height=500)
             st.download_button("⬇ Download CSV", pipe_df.to_csv(),
@@ -561,7 +591,7 @@ with tab4:
                 return styles
  
             st.dataframe(
-                lost_df.style.apply(style_lost, axis=None)
+                lost_df.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_lost, axis=None)
                              .format({'Count':'{:,}'}),
                 use_container_width=True, height=500)
             st.download_button("⬇ Download CSV", lost_df.to_csv(),
