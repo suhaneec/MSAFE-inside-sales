@@ -13,24 +13,49 @@ st.set_page_config(
 st.markdown("""
 <style>
  
-/* ══ APP BACKGROUND ══════════════════════════════════════════════════════ */
-.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
-    background-color: #F8FAFC; color: #0F172A;
+/* ══ GLOBAL FONT SIZE & TEXT COLOR ══════════════════════════════════════ */
+html, body, [class*="css"], .stApp {
+    font-size: 15px !important;
+    color: #0F172A !important;
 }
-.stApp p, .stMarkdown p, [data-testid="stMarkdownContainer"] p { color: #0F172A; }
+p, span, div, label, li, td, th { color: #0F172A !important; }
  
-/* Tabs */
-.stTabs [data-baseweb="tab"] { color: #475569; font-weight: 500; }
-.stTabs [aria-selected="true"] { color: #0F2044 !important;
-    border-bottom-color: #0F2044 !important; font-weight: 700; }
-.stTabs [data-baseweb="tab-list"] { background-color: #F1F5F9;
-    border-radius: 8px; padding: 4px; }
+/* ══ APP BACKGROUND ══════════════════════════════════════════════════════ */
+.stApp,
+[data-testid="stAppViewContainer"],
+[data-testid="stMain"] {
+    background-color: #F1F5F9 !important;
+}
  
-/* Download buttons */
+/* ══ TABS ════════════════════════════════════════════════════════════════ */
+.stTabs [data-baseweb="tab"] {
+    color: #334155 !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+}
+.stTabs [aria-selected="true"] {
+    color: #0F2044 !important;
+    border-bottom: 3px solid #0F2044 !important;
+    font-weight: 800 !important;
+}
+.stTabs [data-baseweb="tab-list"] {
+    background-color: #E2E8F0 !important;
+    border-radius: 8px !important;
+    padding: 4px !important;
+}
+ 
+/* ══ DOWNLOAD BUTTONS ════════════════════════════════════════════════════ */
 [data-testid="stDownloadButton"] button {
-    background-color: #0F2044; color: white;
-    border: none; border-radius: 6px; font-size: 12px; }
-[data-testid="stDownloadButton"] button:hover { background-color: #1B3A6B; }
+    background-color: #0F2044 !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+}
+[data-testid="stDownloadButton"] button:hover {
+    background-color: #1B3A6B !important;
+}
  
 /* ══ SIDEBAR ════════════════════════════════════════════════════════════ */
 section[data-testid="stSidebar"],
@@ -39,100 +64,160 @@ section[data-testid="stSidebar"] > div:first-child {
 }
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] h1, h2, h3,
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
 section[data-testid="stSidebar"] .stMarkdown,
 section[data-testid="stSidebar"] .stMarkdown p,
-section[data-testid="stSidebar"] small { color: white !important; }
-section[data-testid="stSidebar"] hr { border-color: #2D5F9E !important; opacity: 0.5; }
- 
-/* Multiselect box */
+section[data-testid="stSidebar"] small,
+section[data-testid="stSidebar"] span {
+    color: #FFFFFF !important;
+    font-size: 15px !important;
+}
+section[data-testid="stSidebar"] hr {
+    border-color: #2D5F9E !important;
+    opacity: 0.5;
+}
 section[data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"] > div {
     background-color: #162955 !important;
-    border: 1px solid #2D5F9E !important; border-radius: 6px !important;
+    border: 1px solid #2D5F9E !important;
+    border-radius: 6px !important;
 }
 section[data-testid="stSidebar"] .stMultiSelect input {
-    color: white !important; caret-color: white !important;
+    color: white !important;
+    caret-color: white !important;
 }
-section[data-testid="stSidebar"] .stMultiSelect [aria-placeholder] { color: #8BAFD4 !important; }
 section[data-testid="stSidebar"] [data-baseweb="tag"] {
-    background-color: #2D5F9E !important; border-radius: 4px !important;
+    background-color: #2D5F9E !important;
+    border-radius: 4px !important;
 }
 section[data-testid="stSidebar"] [data-baseweb="tag"] span,
 section[data-testid="stSidebar"] [data-baseweb="tag"] svg {
-    color: white !important; fill: white !important;
+    color: white !important;
+    fill: white !important;
 }
- 
-/* File uploader */
 section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
     background-color: #162955 !important;
-    border: 2px dashed #2D5F9E !important; border-radius: 8px !important;
+    border: 2px dashed #2D5F9E !important;
+    border-radius: 8px !important;
 }
 section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] *,
 section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] span,
-section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] small,
-section[data-testid="stSidebar"] [data-testid="stFileUploader"] span {
+section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] small {
     color: #8BAFD4 !important;
 }
- 
-/* Date input */
 section[data-testid="stSidebar"] .stDateInput div[data-baseweb="input"],
 section[data-testid="stSidebar"] .stDateInput div[data-baseweb="base-input"] {
     background-color: #162955 !important;
-    border: 1px solid #2D5F9E !important; border-radius: 6px !important;
+    border: 1px solid #2D5F9E !important;
+    border-radius: 6px !important;
 }
 section[data-testid="stSidebar"] .stDateInput input {
-    color: white !important; background-color: #162955 !important;
+    color: white !important;
+    background-color: #162955 !important;
 }
  
 /* ══ KPI CARDS ══════════════════════════════════════════════════════════ */
 .kpi-block {
-    background: white; border-radius: 10px; padding: 16px 12px;
-    text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.10);
-    height: 88px; display: flex; flex-direction: column;
-    justify-content: center; border-top: 3px solid #E2E8F0;
+    background: white !important;
+    border-radius: 12px !important;
+    padding: 18px 14px !important;
+    text-align: center !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10) !important;
+    height: 100px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    border-top: 4px solid #CBD5E1 !important;
 }
-.kpi-label { font-size: 10px; color: #64748B; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
-.kpi-value { font-size: 26px; font-weight: 700; color: #0F2044; line-height: 1; }
-.kpi-value.green { color: #0A6640; }
-.kpi-value.red   { color: #B91C1C; }
-.kpi-value.amber { color: #92400E; }
-.kpi-value.blue  { color: #1E40AF; }
+.kpi-label {
+    font-size: 12px !important;
+    color: #334155 !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.07em !important;
+    margin-bottom: 6px !important;
+}
+.kpi-value {
+    font-size: 30px !important;
+    font-weight: 800 !important;
+    color: #0F2044 !important;
+    line-height: 1 !important;
+}
+.kpi-value.green { color: #166534 !important; }
+.kpi-value.red   { color: #991B1B !important; }
+.kpi-value.amber { color: #78350F !important; }
+.kpi-value.blue  { color: #1E3A8A !important; }
  
 /* ══ SECTION HEADERS ════════════════════════════════════════════════════ */
-.sec-hdr { background: #0F2044; color: white !important; padding: 8px 16px;
-    border-radius: 6px; font-weight: 600; font-size: 13px; margin: 12px 0 6px 0; }
-.sub-note { font-size: 11px; color: #64748B; font-style: italic; margin: 0 0 6px 0; }
-[data-testid="stAlert"] { color: #0F172A !important; }
+.sec-hdr {
+    background: #1E3A8A !important;
+    color: #FFFFFF !important;
+    padding: 10px 18px !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    margin: 14px 0 8px 0 !important;
+    letter-spacing: 0.02em !important;
+}
+.sub-note {
+    font-size: 13px !important;
+    color: #334155 !important;
+    font-style: italic !important;
+    font-weight: 500 !important;
+    margin: 0 0 8px 0 !important;
+}
  
 /* ══ DATAFRAME — force dark readable text ════════════════════════════════ */
-[data-testid="stDataFrame"] {
-    font-size: 14px !important;
-    color: #0F172A !important;
-}
-/* Column headers */
+[data-testid="stDataFrame"] { font-size: 14px !important; }
+ 
 [data-testid="stDataFrame"] th,
 [data-testid="stDataFrame"] [role="columnheader"],
-[data-testid="stDataFrame"] [role="columnheader"] *  {
-    background-color: #1B3A6B !important;
-    color: white !important;
-    font-size: 13px !important;
+[data-testid="stDataFrame"] [role="columnheader"] * {
+    background-color: #1E3A8A !important;
+    color: #FFFFFF !important;
+    font-size: 14px !important;
     font-weight: 700 !important;
 }
-/* Data cells */
 [data-testid="stDataFrame"] td,
 [data-testid="stDataFrame"] [role="gridcell"],
 [data-testid="stDataFrame"] [role="gridcell"] * {
     color: #0F172A !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
 }
-/* Row index */
 [data-testid="stDataFrame"] [role="rowheader"],
 [data-testid="stDataFrame"] [role="rowheader"] * {
     color: #0F172A !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    background-color: #E2E8F0 !important;
+}
+ 
+/* ══ EXPANDER TEXT ═══════════════════════════════════════════════════════ */
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] p,
+[data-testid="stExpander"] td,
+[data-testid="stExpander"] th {
+    color: #0F172A !important;
+    font-size: 14px !important;
+}
+ 
+/* ══ ALERT / INFO BOX ════════════════════════════════════════════════════ */
+[data-testid="stAlert"] { color: #0F172A !important; font-size: 14px !important; }
+ 
+/* ══ FOOTER ══════════════════════════════════════════════════════════════ */
+.footer-txt { color: #475569 !important; font-size: 13px !important; font-weight: 500 !important; }
+ 
+/* ══ RAG LEGEND ══════════════════════════════════════════════════════════ */
+.rag-legend {
+    font-size: 14px !important;
+    color: #1E293B !important;
     font-weight: 600 !important;
-    background-color: #F1F5F9 !important;
+    padding: 8px 14px !important;
+    background: #FFFFFF !important;
+    border-radius: 8px !important;
+    border-left: 4px solid #1E3A8A !important;
+    margin-bottom: 10px !important;
 }
  
 </style>
@@ -180,41 +265,63 @@ def real_fill_pct(series):
     return round(filled / len(series) * 100) if len(series) > 0 else 0
  
 # ── COLOUR HELPERS ────────────────────────────────────────────────────────────
+BASE = 'font-size:14px; font-weight:600; '
+ 
 def c_winpct(val):
     try:
         p = float(str(val).replace('%',''))
-        if p >= 5:  return 'background-color:#E9F7EF; color:#0A6640; font-weight:700'
-        elif p >= 2:return 'background-color:#FFFBEB; color:#92400E; font-weight:600'
-        elif p == 0:return 'background-color:#FEF2F2; color:#B91C1C; font-weight:700'
-        return 'color:#64748B'
+        if p >= 5:   return BASE + 'background-color:#DCFCE7; color:#14532D;'
+        elif p >= 2: return BASE + 'background-color:#FEF9C3; color:#713F12;'
+        elif p == 0: return BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
+        return BASE + 'color:#334155;'
     except: return ''
  
 def c_losspct(val):
     try:
         p = float(str(val).replace('%',''))
-        if p >= 70:  return 'background-color:#FEF2F2; color:#B91C1C; font-weight:700'
-        elif p >= 50:return 'background-color:#FFFBEB; color:#92400E'
-        return ''
+        if p >= 70:  return BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
+        elif p >= 50:return BASE + 'background-color:#FEF9C3; color:#713F12;'
+        return BASE + 'background-color:#DCFCE7; color:#14532D;'
     except: return ''
  
 def c_hygiene(val):
     try:
         s = str(val).replace('%','')
-        if s in ('—',''): return 'background-color:#FEF2F2; color:#B91C1C; font-weight:700'
+        if s in ('—','','nan'): return BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
         p = float(s)
-        if p >= 70:  return 'background-color:#E9F7EF; color:#0A6640; font-weight:700'
-        elif p >= 30:return 'background-color:#FFFBEB; color:#92400E'
-        return 'background-color:#FEF2F2; color:#B91C1C'
+        if p >= 70:  return BASE + 'background-color:#DCFCE7; color:#14532D;'
+        elif p >= 30:return BASE + 'background-color:#FEF9C3; color:#713F12;'
+        return BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
     except: return ''
  
 def c_source_win(val):
     try:
         p = float(str(val).replace('%',''))
-        if p >= 15:  return 'background-color:#E9F7EF; color:#0A6640; font-weight:700'
-        elif p >= 2: return 'background-color:#FFFBEB; color:#92400E'
-        elif p == 0: return 'background-color:#FEF2F2; color:#B91C1C'
-        return ''
+        if p >= 15:  return BASE + 'background-color:#DCFCE7; color:#14532D;'
+        elif p >= 2: return BASE + 'background-color:#FEF9C3; color:#713F12;'
+        elif p == 0: return BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
+        return BASE + 'color:#334155;'
     except: return ''
+ 
+def c_won(val):
+    try:
+        v = int(val)
+        if v >= 10:  return BASE + 'background-color:#DCFCE7; color:#14532D;'
+        elif v >= 1: return BASE + 'background-color:#FEF9C3; color:#713F12;'
+        return BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
+    except: return ''
+ 
+def c_lost_rel(val, median):
+    try:
+        v = int(val)
+        if v >= median * 1.3:  return BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
+        elif v >= median * 0.7:return BASE + 'background-color:#FEF9C3; color:#713F12;'
+        return BASE + 'background-color:#DCFCE7; color:#14532D;'
+    except: return ''
+ 
+def total_style(): return 'background-color:#1E3A8A; color:#FFFFFF !important; font-weight:700; font-size:14px;'
+ 
+BASE_CELL = {"color":"#0F172A","font-size":"14px","font-weight":"500"}
  
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 st.sidebar.markdown("## 📊 MSafe CRM")
@@ -226,10 +333,13 @@ uploaded = st.sidebar.file_uploader(
 if not uploaded:
     st.markdown("""
     <div style='text-align:center; padding:100px 40px;'>
-        <div style='font-size:52px;'>📂</div>
-        <h2 style='color:#0F2044; margin-top:16px;'>MSafe Inside Sales Dashboard</h2>
-        <p style='color:#64748B; font-size:15px; margin-top:8px;'>
+        <div style='font-size:56px;'>📂</div>
+        <h2 style='color:#0F2044; margin-top:16px; font-size:26px;'>MSafe Inside Sales Dashboard</h2>
+        <p style='color:#334155; font-size:16px; margin-top:10px;'>
             Upload your KIT19 CRM export from the sidebar to get started.
+        </p>
+        <p style='color:#64748B; font-size:14px; margin-top:6px;'>
+            Accepts .xls or .xlsx files exported from KIT19.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -267,12 +377,12 @@ if date_range and len(date_range)==2 and 'CreatedOn' in filt.columns:
  
 # ── HEADER ────────────────────────────────────────────────────────────────────
 st.markdown("""
-<div style='background:#0F2044; padding:16px 24px; border-radius:10px;
-            margin-bottom:14px; display:flex; align-items:center; gap:16px;'>
-    <span style='color:white; font-size:19px; font-weight:700;'>
+<div style='background:#0F2044; padding:18px 28px; border-radius:12px;
+            margin-bottom:16px; display:flex; align-items:center; gap:18px;'>
+    <span style='color:#FFFFFF; font-size:22px; font-weight:800; letter-spacing:0.01em;'>
         MSafe Equipments — Inside Sales Dashboard
     </span>
-    <span style='color:#8BAFD4; font-size:12px;'>KIT19 CRM</span>
+    <span style='color:#93C5FD; font-size:14px; font-weight:600;'>KIT19 CRM</span>
 </div>
 """, unsafe_allow_html=True)
  
@@ -295,15 +405,26 @@ def kpi(col, label, value, cls=''):
         <div class='kpi-value {cls}'>{value}</div>
     </div>""", unsafe_allow_html=True)
  
-kpi(cols[0],'Total Leads', f'{total:,}')
-kpi(cols[1],'Won',         f'{won:,}',   'green')
-kpi(cols[2],'Lost',        f'{lost:,}',  'red')
-kpi(cols[3],'Active',      f'{active:,}','amber')
-kpi(cols[4],'Win Rate',    f'{wr}%',     'blue')
-kpi(cols[5],'Quote → Win', f'{q2w}%',   'green')
-kpi(cols[6],'High Intent', f'{high:,}',  'amber')
-kpi(cols[7],'Cold CB/RNR', f'{cold:,}',  'red')
-kpi(cols[8],'Ex.Client Win',f'{ec_wr}%','green')
+kpi(cols[0],'Total Leads',  f'{total:,}')
+kpi(cols[1],'Won',          f'{won:,}',   'green')
+kpi(cols[2],'Lost',         f'{lost:,}',  'red')
+kpi(cols[3],'Active',       f'{active:,}','amber')
+kpi(cols[4],'Win Rate',     f'{wr}%',     'blue')
+kpi(cols[5],'Quote → Win',  f'{q2w}%',   'green')
+kpi(cols[6],'High Intent',  f'{high:,}',  'amber')
+kpi(cols[7],'Cold CB/RNR',  f'{cold:,}',  'red')
+kpi(cols[8],'Ex.Client Win',f'{ec_wr}%', 'green')
+ 
+st.markdown("<br>", unsafe_allow_html=True)
+ 
+# RAG legend
+st.markdown("""
+<div class='rag-legend'>
+    🟢 Green = Good &nbsp;&nbsp;&nbsp;
+    🟡 Amber = Needs attention &nbsp;&nbsp;&nbsp;
+    🔴 Red = Problem / Act now
+</div>
+""", unsafe_allow_html=True)
  
 st.markdown("<br>", unsafe_allow_html=True)
  
@@ -320,9 +441,11 @@ tab1, tab2, tab3, tab4 = st.tabs([
 # ════════════════════════════════════════════════════════════════════════════
 with tab1:
     st.markdown("<div class='sec-hdr'>Leads by Rep & Source</div>", unsafe_allow_html=True)
-    st.markdown("<p class='sub-note'>Number of leads each rep received from each source. "
-                "Green = quality sources (Existing Client, Ex-Client Ref.)  |  "
-                "TOTAL row and column in navy.</p>", unsafe_allow_html=True)
+    st.markdown("<p class='sub-note'>"
+                "Number of leads each rep received from each source.&nbsp; "
+                "🟢 Existing Client / Ex-Client Ref = quality sources with high win rates.&nbsp; "
+                "🔴 JustDial / IndiaMart = high volume, very low conversion.</p>",
+                unsafe_allow_html=True)
  
     if total == 0:
         st.info("No data for current filters.")
@@ -339,50 +462,63 @@ with tab1:
  
         def style_pivot(df):
             styles = pd.DataFrame('', index=df.index, columns=df.columns)
-            quality = ['Existing Client','Ex-Client Ref.']
+            quality  = ['Existing Client','Ex-Client Ref.']
+            bad_src  = ['JustDial','IndiaMart','Facebook']
             for col in df.columns:
                 if col in quality:
                     styles[col] = df[col].apply(
-                        lambda v: 'background-color:#E9F7EF; color:#0A6640; font-weight:700'
-                        if (isinstance(v,int) and v>0) else '')
-                if col == 'TOTAL':
-                    styles[col] = 'background-color:#EAF0FB; color:#0F2044; font-weight:700'
+                        lambda v: BASE + 'background-color:#DCFCE7; color:#14532D;'
+                        if (isinstance(v,int) and v>0) else BASE + 'color:#0F172A;')
+                elif col in bad_src:
+                    styles[col] = df[col].apply(
+                        lambda v: BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
+                        if (isinstance(v,int) and v>0) else BASE + 'color:#0F172A;')
+                elif col == 'TOTAL':
+                    styles[col] = BASE + 'background-color:#DBEAFE; color:#1E3A8A; font-weight:700;'
+                else:
+                    styles[col] = BASE + 'color:#0F172A;'
             if 'TOTAL' in df.index:
-                styles.loc['TOTAL'] = 'background-color:#0F2044; color:white; font-weight:700'
+                styles.loc['TOTAL'] = BASE + 'background-color:#1E3A8A; color:#FFFFFF; font-weight:700;'
             return styles
  
         fmt = lambda x: '' if x==0 else f'{x:,}'
         st.dataframe(
-            pivot.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_pivot, axis=None).format(fmt),
+            pivot.style.set_properties(**BASE_CELL).apply(style_pivot, axis=None).format(fmt),
             use_container_width=True, height=460)
  
-        st.download_button("⬇ Download CSV", pivot.to_csv(),
-                           "rep_source.csv", "text/csv")
+        st.download_button("⬇ Download CSV", pivot.to_csv(), "rep_source.csv", "text/csv")
  
-        # Source win rate below the table (just a plain number table)
+        # Source win rate
         st.markdown("<div class='sec-hdr'>Source Win Rate</div>", unsafe_allow_html=True)
-        st.markdown("<p class='sub-note'>How many leads from each source converted to Won.</p>",
+        st.markdown("<p class='sub-note'>"
+                    "Win % 🟢 ≥15% &nbsp; 🟡 2–14% &nbsp; 🔴 0%</p>",
                     unsafe_allow_html=True)
  
         sw = filt.groupby('Source_group').agg(
-            Leads=('Stage','count'),
-            Won  =('Stage', lambda x:(x=='Won').sum()),
-            Lost =('Stage', lambda x:(x=='Lost').sum()),
-            Active=('Stage',lambda x:(x=='Active').sum()),
+            Leads =('Stage','count'),
+            Won   =('Stage', lambda x:(x=='Won').sum()),
+            Lost  =('Stage', lambda x:(x=='Lost').sum()),
+            Active=('Stage', lambda x:(x=='Active').sum()),
         ).reset_index().rename(columns={'Source_group':'Source'})
-        sw['Win %'] = (sw['Won']/sw['Leads']*100).round(1).astype(str)+'%'
+        sw['Win %']  = (sw['Won']/sw['Leads']*100).round(1).astype(str)+'%'
+        sw['Loss %'] = (sw['Lost']/sw['Leads']*100).round(1).astype(str)+'%'
         sw = sw[sw['Leads']>2].sort_values('Won',ascending=False).set_index('Source')
  
         def style_sw(df):
             styles = pd.DataFrame('', index=df.index, columns=df.columns)
-            styles['Win %'] = df['Win %'].apply(c_source_win)
-            styles['Won']   = df['Won'].apply(
-                lambda v: 'background-color:#E9F7EF; color:#0A6640; font-weight:700' if v>0 else '')
+            for idx in df.index:
+                styles.loc[idx,'Win %']  = c_source_win(df.loc[idx,'Win %'])
+                styles.loc[idx,'Loss %'] = c_losspct(df.loc[idx,'Loss %'])
+                styles.loc[idx,'Won']    = c_won(df.loc[idx,'Won'])
+                styles.loc[idx,'Lost']   = BASE + 'color:#7F1D1D;'
+                styles.loc[idx,'Leads']  = BASE + 'color:#0F172A; font-weight:700;'
+                styles.loc[idx,'Active'] = BASE + 'color:#713F12;'
             return styles
  
         st.dataframe(
-            sw.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_sw, axis=None).format({'Leads':'{:,}','Won':'{:,}','Lost':'{:,}','Active':'{:,}'}),
-            use_container_width=True, height=320)
+            sw.style.set_properties(**BASE_CELL).apply(style_sw, axis=None)
+                    .format({'Leads':'{:,}','Won':'{:,}','Lost':'{:,}','Active':'{:,}'}),
+            use_container_width=True, height=340)
  
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 2 — REP PERFORMANCE
@@ -391,8 +527,10 @@ with tab2:
     st.markdown("<div class='sec-hdr'>Rep Performance — Active / Won / Lost</div>",
                 unsafe_allow_html=True)
     st.markdown("<p class='sub-note'>"
-                "🟢 Win % ≥ 5%   🟡 Win % 2–5%   🔴 Win % 0%  &nbsp;|&nbsp;  "
-                "🔴 Loss % ≥ 70%   🟡 Loss % 50–70%</p>",
+                "Win % 🟢 ≥5% &nbsp; 🟡 2–4.9% &nbsp; 🔴 0% &nbsp;|&nbsp; "
+                "Loss % 🟢 &lt;50% &nbsp; 🟡 50–69% &nbsp; 🔴 ≥70% &nbsp;|&nbsp; "
+                "Won count 🟢 ≥10 &nbsp; 🟡 1–9 &nbsp; 🔴 0 &nbsp;|&nbsp; "
+                "Lost count colored relative to team median.</p>",
                 unsafe_allow_html=True)
  
     if total == 0:
@@ -408,6 +546,8 @@ with tab2:
         awl['Loss %'] = (awl['Lost'] /awl['Total']*100).round(1).astype(str)+'%'
         awl = awl.sort_values('Won',ascending=False)
  
+        lost_median = awl['Lost'].median()
+ 
         tot_row = pd.DataFrame([{
             'Rep':'TOTAL','Total':awl['Total'].sum(),'Active':awl['Active'].sum(),
             'Won':awl['Won'].sum(),'Lost':awl['Lost'].sum(),
@@ -420,20 +560,18 @@ with tab2:
             styles = pd.DataFrame('', index=df.index, columns=df.columns)
             for idx in df.index:
                 if idx=='TOTAL':
-                    styles.loc[idx] = 'background-color:#0F2044; color:white; font-weight:700'
+                    styles.loc[idx] = total_style()
                     continue
+                styles.loc[idx,'Total']  = BASE + 'color:#0F172A; font-weight:700;'
+                styles.loc[idx,'Active'] = BASE + 'background-color:#EFF6FF; color:#1E3A8A;'
+                styles.loc[idx,'Won']    = c_won(df.loc[idx,'Won'])
+                styles.loc[idx,'Lost']   = c_lost_rel(df.loc[idx,'Lost'], lost_median)
                 styles.loc[idx,'Win %']  = c_winpct(df.loc[idx,'Win %'])
                 styles.loc[idx,'Loss %'] = c_losspct(df.loc[idx,'Loss %'])
-                won_v = df.loc[idx,'Won']
-                if isinstance(won_v,int) and won_v>0:
-                    styles.loc[idx,'Won'] = 'background-color:#E9F7EF; color:#0A6640; font-weight:700'
-                lost_v = df.loc[idx,'Lost']
-                if isinstance(lost_v,int) and lost_v>300:
-                    styles.loc[idx,'Lost'] = 'background-color:#FEF2F2; color:#B91C1C'
             return styles
  
         st.dataframe(
-            awl_d.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_awl, axis=None)
+            awl_d.style.set_properties(**BASE_CELL).apply(style_awl, axis=None)
                        .format({'Total':'{:,}','Active':'{:,}','Won':'{:,}','Lost':'{:,}'}),
             use_container_width=True, height=500)
  
@@ -447,8 +585,8 @@ with tab3:
     st.markdown("<div class='sec-hdr'>CRM Data Hygiene — % of Leads with Field Filled</div>",
                 unsafe_allow_html=True)
     st.markdown("<p class='sub-note'>"
-                "🟢 ≥ 70% filled   🟡 30–70% filled   🔴 &lt; 30% filled  &nbsp;|&nbsp;  "
-                "Score = average across all tracked fields.</p>",
+                "🟢 ≥70% filled &nbsp; 🟡 30–69% &nbsp; 🔴 &lt;30%  &nbsp;|&nbsp;  "
+                "Score = average across all tracked fields. Higher = better CRM discipline.</p>",
                 unsafe_allow_html=True)
  
     HYGIENE_FIELDS = {
@@ -477,7 +615,6 @@ with tab3:
             row['Score'] = f"{round(np.mean(pcts))}%" if pcts else '—'
             rows.append(row)
  
-        # Overall row
         ov = {'Rep':'OVERALL','Leads':len(filt)}
         pcts = []
         for label,field in HYGIENE_FIELDS.items():
@@ -495,30 +632,26 @@ with tab3:
             styles = pd.DataFrame('', index=df.index, columns=df.columns)
             for idx in df.index:
                 if idx=='OVERALL':
-                    styles.loc[idx] = 'background-color:#0F2044; color:white; font-weight:700'
+                    styles.loc[idx] = total_style()
                     continue
-                for col in HYGIENE_FIELDS.keys():
+                styles.loc[idx,'Leads'] = BASE + 'color:#0F172A; font-weight:700;'
+                for col in list(HYGIENE_FIELDS.keys()) + ['Score']:
                     if col in df.columns:
                         styles.loc[idx,col] = c_hygiene(df.loc[idx,col])
-                # Score column
-                if 'Score' in df.columns:
-                    styles.loc[idx,'Score'] = c_hygiene(df.loc[idx,'Score'])
             return styles
  
         st.dataframe(
-            hyg.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_hyg, axis=None),
+            hyg.style.set_properties(**BASE_CELL).apply(style_hyg, axis=None),
             use_container_width=True, height=500)
  
-        st.download_button("⬇ Download CSV", hyg.to_csv(),
-                           "crm_hygiene.csv", "text/csv")
+        st.download_button("⬇ Download CSV", hyg.to_csv(), "crm_hygiene.csv", "text/csv")
  
-        # What the fields mean
         with st.expander("What do these fields mean?"):
             st.markdown("""
 | Field | What it tracks | Why it matters |
 |---|---|---|
-| **Product** | Which product category the lead enquired about | Without this, no product-level reporting is possible |
-| **Biz Type** | Sale or Rental | These are two different pipelines — mixing them makes reporting useless |
+| **Product** | Which product the lead enquired about | Without this, no product-level reporting is possible |
+| **Biz Type** | Sale or Rental | Two different pipelines — mixing them makes reporting useless |
 | **City** | Contact city of the lead | Determines which MSafe yard should fulfil the order |
 | **Followup Date** | Whether a next action date is set | No follow-up date = lead is being left to die |
 | **Quote Value** | ₹ value of quotation sent | 0% across all reps — pipeline worth is completely unknown |
@@ -530,13 +663,13 @@ with tab3:
 with tab4:
     c_left, c_right = st.columns(2)
  
-    # ── Active Pipeline ───────────────────────────────────────────────────
     with c_left:
         st.markdown("<div class='sec-hdr'>Active Pipeline Breakdown</div>",
                     unsafe_allow_html=True)
         st.markdown("<p class='sub-note'>"
-                    "🟢 Quoted stages (high intent)   🟡 Interested / Catalogue   "
-                    "🔴 Call Back / RNR (cold)</p>", unsafe_allow_html=True)
+                    "🟢 Quoted stages = hot leads &nbsp; "
+                    "🟡 Interested / Catalogue = engaged &nbsp; "
+                    "🔴 Call Back / RNR = cold / stuck</p>", unsafe_allow_html=True)
  
         active_f = filt[filt['Stage']=='Active']
         if len(active_f)==0:
@@ -552,26 +685,26 @@ with tab4:
                 styles = pd.DataFrame('', index=df.index, columns=df.columns)
                 for idx in df.index:
                     if 'RNR' in idx or 'Call Back' in idx:
-                        styles.loc[idx] = 'background-color:#FEF2F2; color:#B91C1C'
+                        styles.loc[idx] = BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
                     elif any(x in idx for x in ['Quoted','Quote']):
-                        styles.loc[idx] = 'background-color:#E9F7EF; color:#0A6640; font-weight:600'
+                        styles.loc[idx] = BASE + 'background-color:#DCFCE7; color:#14532D;'
                     elif any(x in idx for x in ['Interested','Catalogue','MS Req']):
-                        styles.loc[idx] = 'background-color:#FFFBEB; color:#92400E'
+                        styles.loc[idx] = BASE + 'background-color:#FEF9C3; color:#713F12;'
+                    else:
+                        styles.loc[idx] = BASE + 'color:#0F172A;'
                 return styles
  
             st.dataframe(
-                pipe_df.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_pipe, axis=None)
+                pipe_df.style.set_properties(**BASE_CELL).apply(style_pipe, axis=None)
                              .format({'Count':'{:,}'}),
                 use_container_width=True, height=500)
-            st.download_button("⬇ Download CSV", pipe_df.to_csv(),
-                               "pipeline.csv", "text/csv")
+            st.download_button("⬇ Download CSV", pipe_df.to_csv(), "pipeline.csv", "text/csv")
  
-    # ── Lost Reasons ──────────────────────────────────────────────────────
     with c_right:
         st.markdown("<div class='sec-hdr'>Why Leads Are Lost</div>",
                     unsafe_allow_html=True)
         st.markdown("<p class='sub-note'>"
-                    "Sorted by volume. All loss reasons shown for filtered selection.</p>",
+                    "Sorted by volume. 🔴 Top bucket &nbsp; 🟡 Mid &nbsp; lighter = smaller volume.</p>",
                     unsafe_allow_html=True)
  
         lost_f = filt[filt['Stage']=='Lost']
@@ -583,24 +716,31 @@ with tab4:
                        .rename(columns={'FollowupStatus':'Lost Reason','count':'Count'}))
             lost_df['% of Lost'] = (lost_df['Count']/len(lost_f)*100).round(1).astype(str)+'%'
             lost_df = lost_df.set_index('Lost Reason')
+            max_v = lost_df['Count'].max()
  
-            # All red — all are losses
             def style_lost(df):
                 styles = pd.DataFrame('', index=df.index, columns=df.columns)
-                styles['Count'] = 'background-color:#FEF2F2; color:#B91C1C; font-weight:700'
+                for idx in df.index:
+                    v = df.loc[idx,'Count']
+                    if v >= max_v * 0.6:
+                        styles.loc[idx] = BASE + 'background-color:#FEE2E2; color:#7F1D1D;'
+                    elif v >= max_v * 0.3:
+                        styles.loc[idx] = BASE + 'background-color:#FEF9C3; color:#713F12;'
+                    else:
+                        styles.loc[idx] = BASE + 'color:#0F172A;'
                 return styles
  
             st.dataframe(
-                lost_df.style.set_properties(**{"color":"#0F172A","font-size":"13px","font-weight":"500"}).apply(style_lost, axis=None)
+                lost_df.style.set_properties(**BASE_CELL).apply(style_lost, axis=None)
                              .format({'Count':'{:,}'}),
                 use_container_width=True, height=500)
-            st.download_button("⬇ Download CSV", lost_df.to_csv(),
-                               "lost_reasons.csv", "text/csv")
+            st.download_button("⬇ Download CSV", lost_df.to_csv(), "lost_reasons.csv", "text/csv")
  
 # ── FOOTER ────────────────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(
-    f"<p style='text-align:center; color:#94A3B8; font-size:11px;'>"
-    f"MSafe Equipments  |  KIT19 CRM  |  {len(df_raw):,} leads in file  |  "
+    f"<p class='footer-txt' style='text-align:center;'>"
+    f"MSafe Equipments &nbsp;|&nbsp; KIT19 CRM &nbsp;|&nbsp; "
+    f"{len(df_raw):,} leads in file &nbsp;|&nbsp; "
     f"{len(filt):,} leads shown with current filters"
     f"</p>", unsafe_allow_html=True)
