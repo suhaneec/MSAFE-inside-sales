@@ -568,7 +568,9 @@ with tab4:
                    .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
                    .apply(sty_ls, axis=None)
                    .format({'Total Leads':'{:,}','Lost':'{:,}'}),
-            use_co# ══════════════════════════════════════════════════════════════════════════════
+            use_container_width=True, height=450)
+ 
+# ══════════════════════════════════════════════════════════════════════════════
 # TAB 5 — AMOUNT & REVENUE  (rep-wise and source-wise)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab5:
@@ -780,9 +782,6 @@ with tab5:
             use_container_width=True, height=360)
         st.download_button("⬇ Download CSV", src_disp.to_csv(),
                            "revenue_by_source.csv", "text/csv")
- 
- 
-ntainer_width=True, height=450)
  
 # ── FOOTER ────────────────────────────────────────────────────────────────────
 st.markdown("---")
