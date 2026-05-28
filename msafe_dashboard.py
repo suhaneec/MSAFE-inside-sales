@@ -228,11 +228,12 @@ kpi(kcols[8],'ExClient Win',f'{ec_wr}%', 'green')
 st.markdown("<br>", unsafe_allow_html=True)
  
 # ── TABS ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊  Leads by Rep & Source",
     "🔄  Conversion by Rep & Source",
     "🔵  Pipeline by Rep",
     "🔴  Lost Reasons by Rep",
+    "💰  Amount & Revenue",
 ])
  
 # ══════════════════════════════════════════════════════════════════════════════
@@ -567,7 +568,221 @@ with tab4:
                    .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
                    .apply(sty_ls, axis=None)
                    .format({'Total Leads':'{:,}','Lost':'{:,}'}),
-            use_container_width=True, height=450)
+            use_co# ══════════════════════════════════════════════════════════════════════════════
+# TAB 5 — AMOUNT & REVENUE  (rep-wise and source-wise)
+# ══════════════════════════════════════════════════════════════════════════════
+with tab5:
+ 
+    # ── What this table shows ──────────────────────────────────────────────
+    st.markdown("<div class='sec-hdr'>💡 What This Tab Shows & Why It Matters</div>",
+                unsafe_allow_html=True)
+ 
+    c_info1, c_info2 = st.columns(2)
+    with c_info1:
+        st.markdown("""
+<div style='background:white;border-radius:8px;padding:16px;border:1px solid #E2E8F0;
+            border-left:4px solid #0F2044;font-family:Arial,sans-serif;'>
+<p style='color:#0F2044;font-weight:700;font-size:13px;margin:0 0 8px 0;'>WHAT IS BEING SHOWN</p>
+<p style='color:#334155;font-size:12px;margin:4px 0;'>
+  <b>Revenue Won ₹</b> — sum of quotation amounts for Won leads per rep / source.<br>
+  <b>Pipeline Value ₹</b> — sum of quotation amounts for Active / Quoted leads still open.<br>
+  <b>Lost Value ₹</b> — sum of quotation amounts for Lost leads (business that slipped away).<br>
+  <b>Avg Deal Size</b> — average quote value per rep, for deals where value is filled.<br>
+  <b>Value Fill Rate</b> — % of leads where the quote amount is actually recorded.
+</p>
+</div>""", unsafe_allow_html=True)
+    with c_info2:
+        st.markdown("""
+<div style='background:white;border-radius:8px;padding:16px;border:1px solid #E2E8F0;
+            border-left:4px solid #B91C1C;font-family:Arial,sans-serif;'>
+<p style='color:#B91C1C;font-weight:700;font-size:13px;margin:0 0 8px 0;'>⚠ DATA QUALITY WARNING</p>
+<p style='color:#334155;font-size:12px;margin:4px 0;'>
+  Quote Value is currently <b>0–5% filled</b> across all reps in KIT19.<br>
+  This means the revenue figures below reflect only the small fraction of leads
+  where a rep manually entered a quote amount. The real numbers are much higher.<br><br>
+  <b>To fix:</b> Reps must fill Quote Value in the CRM when they send a quotation
+  from the ERP. Once fill rate is above 70%, this table becomes the most important
+  review metric in the dashboard.
+</p>
+</div>""", unsafe_allow_html=True)
+ 
+    st.markdown("<br>", unsafe_allow_html=True)
+ 
+    # ── Pull amount data ───────────────────────────────────────────────────
+    # Try all possible amount/value column names from KIT19
+    amt_col = None
+    for possible in ['quotation_total_amount','QuotationAmount','Amount',
+                     'QuoteValue','quote_amount','TotalAmount']:
+        if possible in filt.columns:
+            amt_col = possible
+            break
+ 
+    if amt_col is None:
+        st.warning("No amount/quote value column found in this CRM export. "
+                   "The column expected is 'quotation_total_amount'. "
+                   "Below is what the table WILL show once reps start filling quote values.")
+        # Show a sample / template of what the table will look like
+        st.markdown("<div class='sec-hdr'>Representative Amount Table — Template View</div>",
+                    unsafe_allow_html=True)
+        sample = pd.DataFrame({
+            'Rep':           ['Farhan','Suman','Nehamsafe','Deepak','Simmi','Shubham','TOTAL'],
+            'Won Deals':     [17,17,14,10,6,4,73],
+            'Revenue Won ₹': ['[fill quote value]']*7,
+            'Avg Deal Size ₹':['[fill quote value]']*7,
+            'Open Pipeline ₹':['[fill quote value]']*7,
+            'Lost Value ₹':  ['[fill quote value]']*7,
+            'Value Fill %':  ['0%','0%','0%','0%','0%','0%','0%'],
+        }).set_index('Rep')
+ 
+        def sty_sample(df):
+            s = pd.DataFrame('', index=df.index, columns=df.columns)
+            s['Value Fill %'] = 'background:#FEF2F2;color:#B91C1C;font-weight:700'
+            if 'TOTAL' in df.index:
+                s.loc['TOTAL'] = 'background:#0F2044;color:white;font-weight:700'
+            return s
+ 
+        st.dataframe(
+            sample.style
+                  .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
+                  .apply(sty_sample, axis=None),
+            use_container_width=True, height=320)
+ 
+    else:
+        # Clean the amount column
+        filt_amt = filt.copy()
+        filt_amt[amt_col] = pd.to_numeric(filt_amt[amt_col], errors='coerce').fillna(0)
+ 
+        # ── TABLE 1: REP-WISE AMOUNT ──────────────────────────────────────
+        st.markdown("<div class='sec-hdr'>Revenue & Pipeline Value — Rep-wise</div>",
+                    unsafe_allow_html=True)
+        st.markdown("<p class='sub-note'>"
+                    "All values in ₹. Value Fill % = % of that rep's leads where quote amount is recorded.</p>",
+                    unsafe_allow_html=True)
+ 
+        rep_order_amt = (filt_amt.groupby('Rep')['Stage']
+                          .apply(lambda x:(x=='Won').sum())
+                          .sort_values(ascending=False).index.tolist())
+ 
+        amt_rows = []
+        for rep in rep_order_amt:
+            rd = filt_amt[filt_amt['Rep']==rep]
+            won_d    = rd[rd['Stage']=='Won']
+            active_d = rd[rd['Stage']=='Active']
+            lost_d   = rd[rd['Stage']=='Lost']
+            quoted_d = rd[rd['FollowupStatus'].str.contains('Quot|Quote', na=False, case=False)]
+ 
+            n_total  = len(rd)
+            filled   = (rd[amt_col] > 0).sum()
+            fill_pct = round(filled/n_total*100,1) if n_total else 0
+ 
+            rev_won  = won_d[amt_col].sum()
+            pip_val  = quoted_d[amt_col].sum()
+            lost_val = lost_d[amt_col].sum()
+            avg_deal = (won_d[won_d[amt_col]>0][amt_col].mean()
+                        if len(won_d[won_d[amt_col]>0]) > 0 else 0)
+            won_with_val = (won_d[amt_col] > 0).sum()
+ 
+            amt_rows.append({
+                'Rep':             rep,
+                'Won Deals':       len(won_d),
+                'Won (with value)':won_with_val,
+                'Revenue Won ₹':   f'₹{rev_won:,.0f}' if rev_won > 0 else '—',
+                'Avg Deal Size ₹': f'₹{avg_deal:,.0f}' if avg_deal > 0 else '—',
+                'Open Pipeline ₹': f'₹{pip_val:,.0f}' if pip_val > 0 else '—',
+                'Lost Value ₹':    f'₹{lost_val:,.0f}' if lost_val > 0 else '—',
+                'Value Fill %':    f'{fill_pct}%',
+                '_fill': fill_pct,
+                '_rev':  rev_won,
+            })
+ 
+        # Totals row
+        all_won   = filt_amt[filt_amt['Stage']=='Won']
+        all_quot  = filt_amt[filt_amt['FollowupStatus'].str.contains('Quot|Quote', na=False, case=False)]
+        all_lost  = filt_amt[filt_amt['Stage']=='Lost']
+        tot_fill  = round((filt_amt[amt_col]>0).sum()/len(filt_amt)*100,1) if len(filt_amt) else 0
+        amt_rows.append({
+            'Rep':             'TOTAL',
+            'Won Deals':       len(all_won),
+            'Won (with value)':(all_won[amt_col]>0).sum(),
+            'Revenue Won ₹':   f'₹{all_won[amt_col].sum():,.0f}',
+            'Avg Deal Size ₹': f'₹{all_won[all_won[amt_col]>0][amt_col].mean():,.0f}' if len(all_won[all_won[amt_col]>0]) > 0 else '—',
+            'Open Pipeline ₹': f'₹{all_quot[amt_col].sum():,.0f}',
+            'Lost Value ₹':    f'₹{all_lost[amt_col].sum():,.0f}',
+            'Value Fill %':    f'{tot_fill}%',
+            '_fill': tot_fill, '_rev': all_won[amt_col].sum(),
+        })
+ 
+        amt_df = pd.DataFrame(amt_rows)
+        amt_disp = amt_df.drop(columns=['_fill','_rev']).set_index('Rep')
+ 
+        def sty_amt(df):
+            s = pd.DataFrame('', index=df.index, columns=df.columns)
+            for i,row in amt_df.iterrows():
+                if row['Rep'] == 'TOTAL':
+                    s.loc[i if isinstance(df.index, pd.RangeIndex) else row['Rep']] =                         'background:#0F2044;color:white;font-weight:700'
+                    continue
+                idx = row['Rep']
+                p = row['_fill']
+                if p >= 70:   s.loc[idx,'Value Fill %'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
+                elif p >= 30: s.loc[idx,'Value Fill %'] = 'background:#FFFBEB;color:#92400E'
+                else:         s.loc[idx,'Value Fill %'] = 'background:#FEF2F2;color:#B91C1C;font-weight:700'
+                if row['_rev'] > 0:
+                    s.loc[idx,'Revenue Won ₹'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
+            return s
+ 
+        st.dataframe(
+            amt_disp.style
+                    .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
+                    .apply(sty_amt, axis=None),
+            use_container_width=True, height=480)
+        st.download_button("⬇ Download CSV", amt_disp.to_csv(),
+                           "amount_by_rep.csv", "text/csv")
+ 
+        # ── TABLE 2: SOURCE-WISE REVENUE ──────────────────────────────────
+        st.markdown("<div class='sec-hdr'>Revenue by Source</div>", unsafe_allow_html=True)
+        st.markdown("<p class='sub-note'>"
+                    "Which sources are generating real revenue vs just high lead volume. "
+                    "Best read after quote value fill rate improves.</p>",
+                    unsafe_allow_html=True)
+ 
+        src_amt_rows = []
+        for src in sorted(filt_amt['Source_group'].unique()):
+            sd = filt_amt[filt_amt['Source_group']==src]
+            won_sd  = sd[sd['Stage']=='Won']
+            rev     = won_sd[amt_col].sum()
+            avg     = won_sd[won_sd[amt_col]>0][amt_col].mean() if len(won_sd[won_sd[amt_col]>0])>0 else 0
+            src_amt_rows.append({
+                'Source':           src,
+                'Total Leads':      len(sd),
+                'Won Deals':        len(won_sd),
+                'Revenue Won ₹':    f'₹{rev:,.0f}' if rev > 0 else '—',
+                'Avg per Won ₹':    f'₹{avg:,.0f}' if avg > 0 else '—',
+                '_rev': rev, '_won': len(won_sd),
+            })
+ 
+        src_amt = pd.DataFrame(src_amt_rows).sort_values('_rev', ascending=False)
+        src_disp = src_amt.drop(columns=['_rev','_won']).set_index('Source')
+ 
+        def sty_src_amt(df):
+            s = pd.DataFrame('', index=df.index, columns=df.columns)
+            for i,row in src_amt.iterrows():
+                idx = row['Source']
+                if row['_rev'] > 0:
+                    s.loc[idx,'Revenue Won ₹'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
+                if row['_won'] > 0:
+                    s.loc[idx,'Won Deals'] = 'background:#E9F7EF;color:#0A6640;font-weight:600'
+            return s
+ 
+        st.dataframe(
+            src_disp.style
+                    .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
+                    .apply(sty_src_amt, axis=None),
+            use_container_width=True, height=360)
+        st.download_button("⬇ Download CSV", src_disp.to_csv(),
+                           "revenue_by_source.csv", "text/csv")
+ 
+ 
+ntainer_width=True, height=450)
  
 # ── FOOTER ────────────────────────────────────────────────────────────────────
 st.markdown("---")
