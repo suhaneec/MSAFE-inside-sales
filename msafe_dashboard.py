@@ -1072,5 +1072,4 @@ st.markdown(
     f"<p style='text-align:center;color:#94A3B8;font-size:11px;'>"
     f"MSafe Equipments  |  KIT19 CRM  |  {len(df_raw):,} leads in file  |  "
     f"{len(filt):,} leads shown with current filters</p>", unsafe_allow_html=True)
-PYEOF
-echo "Done"
+
