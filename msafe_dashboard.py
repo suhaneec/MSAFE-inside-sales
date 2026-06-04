@@ -20,7 +20,10 @@ html, body { background-color: #F8FAFC !important; color: #0F172A !important; }
 }
 [data-testid="stMain"] *, .block-container *,
 .stMarkdown *, [data-testid="stMarkdownContainer"] * { color: #0F172A !important; }
- 
+
+/* ── HEADER OVERRIDE: force white text inside the dark header banner ── */
+.msafe-header, .msafe-header * { color: white !important; }
+
 /* ── TAB FIX: white text on dark tab bar, visible selected state ── */
 .stTabs [data-baseweb="tab-list"] {
     background: #0F2044 !important;
@@ -89,6 +92,7 @@ section[data-testid="stSidebar"] .stDateInput input { color:white !important; ba
 .kpi-value.red   { color:#B91C1C !important; }
 .kpi-value.amber { color:#92400E !important; }
 .kpi-value.blue  { color:#1D4ED8 !important; }
+.kpi-value.purple{ color:#6D28D9 !important; }
  
 /* HEADERS */
 .sec-hdr { background:#0F2044 !important; color:white !important; padding:9px 18px;
@@ -115,6 +119,10 @@ WON_S  = ['Quoted Order Won And Executed']
 HIGH_S = ['Quoted In Follow Up','Quoted Order In Pipeline','Quote In Progress',
           'Interested Quote Sent','Quoted Not Picking Call','Quoted Project On Hold',
           'Quoted Order Won And Executed','Quoted Order Lost']
+# Statuses that indicate a quotation was actually sent to the customer
+QUOTED_SENT_S = ['Quoted In Follow Up','Quoted Order In Pipeline','Quote In Progress',
+                 'Interested Quote Sent','Quoted Not Picking Call','Quoted Project On Hold',
+                 'Quoted Order Won And Executed','Quoted Order Lost']
 ADMIN  = ['msafe947362','50988-Surbhi']
 SRC_MAP = {
     'Just Dial':'JustDial','Justdial':'JustDial',
@@ -195,12 +203,13 @@ if date_range and len(date_range)==2 and 'CreatedOn' in filt.columns:
                 (filt['CreatedOn'].dt.date <= date_range[1])]
  
 # ── HEADER ────────────────────────────────────────────────────────────────────
+# Using class="msafe-header" so the CSS override forces white text
 st.markdown(
-    "<div style='background:#0F2044;padding:16px 24px;border-radius:10px;"
+    "<div class='msafe-header' style='background:#0F2044;padding:16px 24px;border-radius:10px;"
     "margin-bottom:14px;'>"
-    "<span style='color:white;font-size:19px;font-weight:700;'>"
+    "<span style='color:white !important;font-size:19px;font-weight:700;'>"
     "MSafe Equipments — Inside Sales Dashboard</span>"
-    "<span style='color:#8BAFD4;font-size:12px;margin-left:16px;'>KIT19 CRM</span>"
+    "<span style='color:#8BAFD4 !important;font-size:12px;margin-left:16px;'>KIT19 CRM</span>"
     "</div>", unsafe_allow_html=True)
  
 # ── KPI ROW ───────────────────────────────────────────────────────────────────
@@ -210,26 +219,31 @@ lost   = (filt['Stage']=='Lost').sum()
 active = (filt['Stage']=='Active').sum()
 high   = filt['FollowupStatus'].isin(HIGH_S).sum()
 cold   = filt['FollowupStatus'].isin(['Call Back','RNR Call Back']).sum()
+# Quotations sent = all leads that reached any "Quoted / Quote" status (ever quoted)
+quotes_sent = filt['FollowupStatus'].isin(QUOTED_SENT_S).sum()
+quote_to_win = round(won / quotes_sent * 100, 1) if quotes_sent else 0
 wr     = round(won/total*100,1) if total else 0
 q2w    = round(won/high*100,1)  if high  else 0
 ec     = filt[filt['Source']=='Existing Client']
 ec_wr  = round((ec['Stage']=='Won').sum()/len(ec)*100,1) if len(ec) else 0
  
-kcols = st.columns(9)
+# 10 KPI cards now (added Quotes Sent + Quote→Win rate)
+kcols = st.columns(10)
 def kpi(col, label, value, cls=''):
     col.markdown(
         f"<div class='kpi-block'><div class='kpi-label'>{label}</div>"
         f"<div class='kpi-value {cls}'>{value}</div></div>", unsafe_allow_html=True)
  
-kpi(kcols[0],'Total Leads', f'{total:,}')
-kpi(kcols[1],'Won',         f'{won:,}',   'green')
-kpi(kcols[2],'Lost',        f'{lost:,}',  'red')
-kpi(kcols[3],'Active',      f'{active:,}','amber')
-kpi(kcols[4],'Win Rate',    f'{wr}%',     'blue')
-kpi(kcols[5],'Quote→Win',   f'{q2w}%',   'green')
-kpi(kcols[6],'High Intent', f'{high:,}',  'amber')
-kpi(kcols[7],'Cold CB/RNR', f'{cold:,}',  'red')
-kpi(kcols[8],'ExClient Win',f'{ec_wr}%', 'green')
+kpi(kcols[0], 'Total Leads',   f'{total:,}')
+kpi(kcols[1], 'Won',           f'{won:,}',        'green')
+kpi(kcols[2], 'Lost',          f'{lost:,}',        'red')
+kpi(kcols[3], 'Active',        f'{active:,}',      'amber')
+kpi(kcols[4], 'Win Rate',      f'{wr}%',           'blue')
+kpi(kcols[5], 'Quotes Sent',   f'{quotes_sent:,}', 'purple')
+kpi(kcols[6], 'Quote→Win %',   f'{quote_to_win}%', 'green')
+kpi(kcols[7], 'High Intent',   f'{high:,}',        'amber')
+kpi(kcols[8], 'Cold CB/RNR',   f'{cold:,}',        'red')
+kpi(kcols[9], 'ExClient Win',  f'{ec_wr}%',        'green')
  
 st.markdown("<br>", unsafe_allow_html=True)
  
@@ -520,7 +534,7 @@ with tab4:
             use_container_width=True, height=450)
  
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 5 — AMOUNT BY DEAL STAGE  (NEW: shows where amount is filled)
+# TAB 5 — AMOUNT BY DEAL STAGE
 # ══════════════════════════════════════════════════════════════════════════════
 with tab5:
     st.markdown("<div class='sec-hdr'>💰 Amount Filled — By Deal Stage & Rep</div>",
@@ -530,7 +544,6 @@ with tab5:
                 "Use this to find where your team IS recording values and where they aren't. "
                 "Green = amount present  🔴 = zero / blank.</p>", unsafe_allow_html=True)
  
-    # Detect amount column — try ALL possible names
     amt_col = None
     for possible in ['quotation_total_amount','QuotationAmount','Amount','QuoteValue',
                      'quote_amount','TotalAmount','QuotationTotalAmount','quotation_amount',
@@ -539,11 +552,9 @@ with tab5:
             amt_col = possible
             break
  
-    # Show all columns so user can identify the right one
     with st.expander("🔍 Debug — All columns in your CRM file"):
         all_cols = list(filt.columns)
         st.write(f"**{len(all_cols)} columns found:**")
-        # Show columns with non-zero numeric data
         numeric_cols = []
         for col in all_cols:
             try:
@@ -562,7 +573,6 @@ with tab5:
             "Check the debug expander above — look for a column marked ✅ with numeric values. "
             "Common KIT19 column names: `quotation_total_amount`, `QuotationAmount`, `Amount`."
         )
-        # Still show stage-wise lead count so it's useful
         st.markdown("<div class='sec-hdr'>Lead Count by Deal Stage (no amount data yet)</div>",
                     unsafe_allow_html=True)
         stage_counts = filt.groupby('FollowupStatus').agg(
@@ -578,7 +588,6 @@ with tab5:
         filt_amt[amt_col] = pd.to_numeric(filt_amt[amt_col], errors='coerce').fillna(0)
         filt_amt['has_amount'] = filt_amt[amt_col] > 0
  
-        # ── TABLE 1: Stage-wise amount fill rate ──────────────────────────
         st.markdown("<div class='sec-hdr'>Where Is Amount Being Filled? — By Deal Stage</div>",
                     unsafe_allow_html=True)
         st.markdown("<p class='sub-note'>"
@@ -631,7 +640,6 @@ with tab5:
         st.download_button("⬇ Download CSV", stage_disp.to_csv(index=False),
                            "amount_by_stage.csv", "text/csv")
  
-        # ── TABLE 2: Rep-wise amount fill rate ────────────────────────────
         st.markdown("<div class='sec-hdr'>Amount Fill Rate — By Rep</div>", unsafe_allow_html=True)
         st.markdown("<p class='sub-note'>"
                     "Which reps are recording quote values and which aren't. "
@@ -657,7 +665,6 @@ with tab5:
  
         rep_amt_df = pd.DataFrame(rep_amt_rows).sort_values('_fill_pct', ascending=False)
  
-        # Totals
         tot_n = len(filt_amt); tot_filled = filt_amt['has_amount'].sum()
         rep_amt_rows.append({
             'Rep': 'TOTAL',
@@ -698,7 +705,7 @@ with tab5:
                            "amount_by_rep.csv", "text/csv")
  
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 6 — SOURCE PERFORMANCE  (NEW)
+# TAB 6 — SOURCE PERFORMANCE
 # ══════════════════════════════════════════════════════════════════════════════
 with tab6:
     st.markdown("<div class='sec-hdr'>📈 Lead Source Performance — Full Breakdown</div>",
@@ -711,7 +718,6 @@ with tab6:
     if total == 0:
         st.info("No data for current filters.")
     else:
-        # ── SECTION 1: Source summary table ───────────────────────────────
         st.markdown("<div class='sec-hdr'>Source Summary — Volume, Win Rate, Loss Rate</div>",
                     unsafe_allow_html=True)
  
@@ -746,7 +752,6 @@ with tab6:
  
         src_df = pd.DataFrame(src_rows).sort_values('_won', ascending=False)
  
-        # Grand total row
         src_rows.append({
             'Source': 'TOTAL',
             'Leads': total,
@@ -771,18 +776,14 @@ with tab6:
                     s.loc[i] = 'background:#0F2044;color:white;font-weight:700'
                     continue
                 wr_v = row['_wr']; lr_v = row['_lr']
-                # Win Rate colouring
                 if wr_v >= 10:   s.loc[i,'Win Rate'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
                 elif wr_v >= 3:  s.loc[i,'Win Rate'] = 'background:#FFFBEB;color:#92400E;font-weight:600'
                 elif wr_v == 0:  s.loc[i,'Win Rate'] = 'background:#FEF2F2;color:#B91C1C;font-weight:700'
-                # Loss Rate colouring
                 if lr_v >= 70:   s.loc[i,'Loss Rate'] = 'background:#FEF2F2;color:#B91C1C;font-weight:700'
                 elif lr_v >= 50: s.loc[i,'Loss Rate'] = 'background:#FFFBEB;color:#92400E;font-weight:600'
                 else:            s.loc[i,'Loss Rate'] = 'background:#E9F7EF;color:#0A6640;font-weight:600'
-                # Won count highlight
                 if row['_won'] > 0:
                     s.loc[i,'Won'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
-                # Quality sources
                 if row['Source'] in ('Existing Client','Ex-Client Ref.'):
                     s.loc[i,'Source'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
             return s
@@ -796,7 +797,6 @@ with tab6:
         st.download_button("⬇ Download CSV", src_disp.to_csv(index=False),
                            "source_performance.csv", "text/csv")
  
-        # ── SECTION 2: Source × Stage cross-tab ───────────────────────────
         st.markdown("<div class='sec-hdr'>Source × Pipeline Stage — Where Each Source's Leads End Up</div>",
                     unsafe_allow_html=True)
         st.markdown("<p class='sub-note'>"
@@ -805,7 +805,6 @@ with tab6:
  
         src_stage_cross = pd.crosstab(filt['Source_group'], filt['FollowupStatus'],
                                        margins=True, margins_name='TOTAL')
-        # Sort columns: won first, then lost, then active stages
         won_cols_ss  = [c for c in src_stage_cross.columns if c in WON_S]
         lost_cols_ss = [c for c in src_stage_cross.columns if c in LOST_S]
         rest_cols_ss = [c for c in src_stage_cross.columns
@@ -839,7 +838,6 @@ with tab6:
                            .format(lambda x: '' if x==0 else f'{x:,}'),
             use_container_width=True, height=400)
  
-        # ── SECTION 3: Source × Rep — which rep handles which source ──────
         st.markdown("<div class='sec-hdr'>Source × Rep — Which Rep Handles Which Source Most</div>",
                     unsafe_allow_html=True)
         st.markdown("<p class='sub-note'>"
@@ -868,7 +866,7 @@ with tab6:
                            "source_by_rep.csv", "text/csv")
  
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 7 — REVENUE SUMMARY  (original Tab 5, renamed)
+# TAB 7 — REVENUE SUMMARY
 # ══════════════════════════════════════════════════════════════════════════════
 with tab7:
     st.markdown("<div class='sec-hdr'>💡 Revenue Summary — Rep-wise & Source-wise</div>",
