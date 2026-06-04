@@ -317,7 +317,7 @@ with t1:
                 s['Win %'] = df['Win %'].apply(c_winpct)
             # TOTAL row → navy
             if 'TOTAL' in df.index:
-                s.loc['TOTAL'] = 'background:#0F2044;color:white;font-weight:700'
+                s.loc['TOTAL'] = 'background:#E8EDF5;color:#0F172A;font-weight:800'
             return s
 
         st.dataframe(
@@ -371,7 +371,7 @@ with t2:
         s=pd.DataFrame('',index=df.index,columns=df.columns)
         for i,row in df.iterrows():
             if i=='TOTAL':
-                s.loc[i]='background:#0F2044;color:white;font-weight:700'; continue
+                s.loc[i]='background:#E8EDF5;color:#0F172A;font-weight:800'; continue
             s.loc[i,'Win %']  = c_winpct(row['Win %'])
             s.loc[i,'Loss %'] = c_losspct(row['Loss %'])
             if row['Won']>0:
@@ -381,10 +381,11 @@ with t2:
         return s
 
     st.dataframe(
-        df2.drop(columns=['_wr','_lr']).style.set_properties(**BASE)
+        df2.style.set_properties(**BASE)
            .apply(sty_t2,axis=None)
            .format({'Leads':'{:,}','Won':'{:,}','Lost':'{:,}',
-                    'Active':'{:,}','Quotes Sent':'{:,}','Cold RNR':'{:,}'}),
+                    'Active':'{:,}','Quotes Sent':'{:,}','Cold RNR':'{:,}'})
+           .hide(axis=1, subset=['_wr','_lr']),
         use_container_width=True, height=420)
     st.download_button("⬇ Download CSV",df2.drop(columns=['_wr','_lr']).to_csv(),
                        "source_performance.csv","text/csv")
@@ -436,7 +437,7 @@ with t3:
                         s[col]=df[col].apply(lambda v:
                             'background:#FEF2F2;color:#B91C1C;font-weight:700' if isinstance(v,(int,float)) and v>0 else '')
                 if 'TOTAL' in df.index:
-                    s.loc['TOTAL']='background:#0F2044;color:white;font-weight:700'
+                    s.loc['TOTAL']='background:#E8EDF5;color:#0F172A;font-weight:800'
                 return s
 
             st.dataframe(
@@ -509,7 +510,7 @@ with t4:
                             else ('background:#FEF2F2;color:#B91C1C' if v>=mx*0.3
                                   else ('color:#B91C1C' if v>0 else ''))))
             if 'TOTAL' in df.index:
-                s.loc['TOTAL']='background:#0F2044;color:white;font-weight:700'
+                s.loc['TOTAL']='background:#E8EDF5;color:#0F172A;font-weight:800'
             return s
 
         st.dataframe(
@@ -589,7 +590,7 @@ with t5:
                         'background:#FFFBEB;color:#92400E'
                         if isinstance(v,(int,float)) and v>0 else '')
             if 'TOTAL' in df.index:
-                s.loc['TOTAL']='background:#0F2044;color:white;font-weight:700'
+                s.loc['TOTAL']='background:#E8EDF5;color:#0F172A;font-weight:800'
             return s
 
         st.dataframe(
@@ -670,7 +671,7 @@ with t6:
                         s[col]=df[col].apply(lambda v:
                             f'{bg};{fc_};{fw}' if isinstance(v,(int,float)) and v>0 else '')
                 if 'TOTAL' in df.index:
-                    s.loc['TOTAL']='background:#0F2044;color:white;font-weight:700'
+                    s.loc['TOTAL']='background:#E8EDF5;color:#0F172A;font-weight:800'
                 return s
 
             st.dataframe(
