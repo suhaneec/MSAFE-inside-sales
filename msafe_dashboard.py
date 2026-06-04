@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO
- 
+
 st.set_page_config(page_title="MSafe Inside Sales", page_icon="📊",
                    layout="wide", initial_sidebar_state="expanded")
- 
+
 st.markdown("""
 <style>
 :root {
@@ -48,15 +48,14 @@ html, body { background-color: #F8FAFC !important; color: #0F172A !important; }
     font-weight: 700 !important;
     border-bottom: none !important;
 }
-/* Force all tab label text white except selected */
 .stTabs [data-baseweb="tab"] span,
 .stTabs [data-baseweb="tab"] p,
 .stTabs [data-baseweb="tab"] div { color: inherit !important; }
- 
+
 [data-testid="stDownloadButton"] button {
     background:#0F2044 !important; color:white !important;
     border:none !important; border-radius:6px !important; font-weight:600 !important; }
- 
+
 /* SIDEBAR */
 section[data-testid="stSidebar"],
 section[data-testid="stSidebar"]>div,
@@ -80,7 +79,7 @@ section[data-testid="stSidebar"] .stDateInput div[data-baseweb="input"],
 section[data-testid="stSidebar"] .stDateInput div[data-baseweb="base-input"] {
     background:#162955 !important; border:1px solid #2D5F9E !important; border-radius:6px !important; }
 section[data-testid="stSidebar"] .stDateInput input { color:white !important; background:#162955 !important; }
- 
+
 /* KPI */
 .kpi-block { background:white !important; border-radius:10px; padding:16px 12px;
     text-align:center; box-shadow:0 2px 6px rgba(0,0,0,0.08); height:88px;
@@ -93,12 +92,12 @@ section[data-testid="stSidebar"] .stDateInput input { color:white !important; ba
 .kpi-value.amber { color:#92400E !important; }
 .kpi-value.blue  { color:#1D4ED8 !important; }
 .kpi-value.purple{ color:#6D28D9 !important; }
- 
+
 /* HEADERS */
 .sec-hdr { background:#0F2044 !important; color:white !important; padding:9px 18px;
     border-radius:6px; font-weight:700; font-size:13px; margin:14px 0 6px 0; }
 .sub-note { font-size:12px !important; color:#475569 !important; font-style:italic; margin:0 0 8px 0; }
- 
+
 /* DATAFRAME */
 [data-testid="stDataFrame"] th,[data-testid="stDataFrame"] [role="columnheader"],
 [data-testid="stDataFrame"] [role="columnheader"] * {
@@ -111,7 +110,7 @@ section[data-testid="stSidebar"] .stDateInput input { color:white !important; ba
     font-weight:600 !important; background:#F1F5F9 !important; }
 </style>
 """, unsafe_allow_html=True)
- 
+
 # ── CONSTANTS ─────────────────────────────────────────────────────────────────
 LOST_S = ['Not-Interested','Not Search Our Product','Regret','Other Department Working',
           'Wrong Number','No Response on RNR','Already Purchased','Quoted Order Lost']
@@ -119,7 +118,6 @@ WON_S  = ['Quoted Order Won And Executed']
 HIGH_S = ['Quoted In Follow Up','Quoted Order In Pipeline','Quote In Progress',
           'Interested Quote Sent','Quoted Not Picking Call','Quoted Project On Hold',
           'Quoted Order Won And Executed','Quoted Order Lost']
-# Statuses that indicate a quotation was actually sent to the customer
 QUOTED_SENT_S = ['Quoted In Follow Up','Quoted Order In Pipeline','Quote In Progress',
                  'Interested Quote Sent','Quoted Not Picking Call','Quoted Project On Hold',
                  'Quoted Order Won And Executed','Quoted Order Lost']
@@ -135,10 +133,59 @@ SRC_MAP = {
 }
 MAIN_SOURCES = ['JustDial','IndiaMart','IVR Call','Existing Client',
                 'Ex-Client Ref.','Facebook','Website','Google Ads','Phone','Email marketing']
- 
+
+# ── AMOUNT COLUMN DETECTION ───────────────────────────────────────────────────
+# Comprehensive list covering KIT19 .xls exports (case-insensitive matching done at runtime)
+AMOUNT_COL_CANDIDATES = [
+    'quotation_total_amount', 'QuotationAmount', 'Amount', 'QuoteValue',
+    'quote_amount', 'TotalAmount', 'QuotationTotalAmount', 'quotation_amount',
+    'Quote Amount', 'Quote_Amount', 'EstimatedValue', 'estimated_value',
+    # KIT19 .xls specific variations
+    'Quotation Total Amount', 'Quotation Amount', 'Order Value', 'order_value',
+    'Deal Value', 'deal_value', 'Revenue', 'revenue', 'Value', 'value',
+    'Quote Value', 'quote_value', 'Pipeline Value', 'pipeline_value',
+    'Expected Revenue', 'expected_revenue', 'Opportunity Value', 'opportunity_value',
+    'Total', 'total', 'OrderValue', 'DealValue', 'LeadValue', 'lead_value',
+]
+
+def find_amount_col(df):
+    """Find amount column: exact match first, then case-insensitive, then any numeric with values."""
+    # 1. Exact match
+    for c in AMOUNT_COL_CANDIDATES:
+        if c in df.columns:
+            s = pd.to_numeric(df[c], errors='coerce')
+            if s.notna().sum() > 0:
+                return c
+    # 2. Case-insensitive match
+    lower_map = {col.lower().replace(' ','_'): col for col in df.columns}
+    for c in AMOUNT_COL_CANDIDATES:
+        key = c.lower().replace(' ','_')
+        if key in lower_map:
+            actual = lower_map[key]
+            s = pd.to_numeric(df[actual], errors='coerce')
+            if s.notna().sum() > 0:
+                return actual
+    # 3. Fuzzy: any column whose name contains 'amount','value','revenue','quote' and has numbers
+    keywords = ['amount', 'value', 'revenue', 'quote', 'total', 'price', 'order']
+    for col in df.columns:
+        if any(k in col.lower() for k in keywords):
+            s = pd.to_numeric(df[col], errors='coerce')
+            if s.notna().sum() > 5 and s.sum() > 0:
+                return col
+    return None
+
+
 @st.cache_data(show_spinner="Loading…")
-def load_data(file_bytes):
-    df = pd.read_excel(BytesIO(file_bytes), engine='openpyxl')
+def load_data(file_bytes, filename):
+    # ── Auto-detect engine based on file extension ──
+    fname = filename.lower()
+    if fname.endswith('.xls'):
+        engine = 'xlrd'
+    else:
+        engine = 'openpyxl'
+
+    df = pd.read_excel(BytesIO(file_bytes), engine=engine)
+
     df['Stage']  = df['FollowupStatus'].apply(
         lambda x:'Won' if x in WON_S else ('Lost' if x in LOST_S else 'Active'))
     df['Source'] = df['SourceName'].replace(SRC_MAP)
@@ -149,18 +196,19 @@ def load_data(file_bytes):
     if 'CreatedOn' in df.columns:
         df['CreatedOn'] = pd.to_datetime(df['CreatedOn'], errors='coerce')
     return df
- 
+
+
 # ── COLOUR HELPERS ─────────────────────────────────────────────────────────────
 def fmt_n_pct(n, total):
     if total == 0: return '0'
     pct = round(n / total * 100, 1)
     return f'{n:,}  ({pct}%)'
- 
+
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 st.sidebar.markdown("## 📊 MSafe CRM")
 st.sidebar.markdown("---")
 uploaded = st.sidebar.file_uploader("Upload CRM export (.xls / .xlsx)", type=['xls','xlsx'])
- 
+
 if not uploaded:
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     _, mid, _ = st.columns([1,2,1])
@@ -176,10 +224,11 @@ if not uploaded:
             "Upload your KIT19 CRM export (.xls / .xlsx)<br>using the sidebar to get started.</div>"
             "</div>", unsafe_allow_html=True)
     st.stop()
- 
-df_raw  = load_data(uploaded.read())
+
+file_bytes = uploaded.read()
+df_raw  = load_data(file_bytes, uploaded.name)
 reps_df = df_raw[~df_raw['is_admin']].copy()
- 
+
 st.sidebar.markdown("### Filters")
 all_reps    = sorted(reps_df['Rep'].dropna().unique().tolist())
 sel_reps    = st.sidebar.multiselect("Rep", all_reps, default=all_reps)
@@ -193,7 +242,7 @@ else:
     date_range = None
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Leads in file:** {len(df_raw):,}")
- 
+
 filt = reps_df.copy()
 if sel_reps:    filt = filt[filt['Rep'].isin(sel_reps)]
 if sel_sources: filt = filt[filt['Source_group'].isin(sel_sources)]
@@ -201,9 +250,8 @@ if sel_stages:  filt = filt[filt['Stage'].isin(sel_stages)]
 if date_range and len(date_range)==2 and 'CreatedOn' in filt.columns:
     filt = filt[(filt['CreatedOn'].dt.date >= date_range[0]) &
                 (filt['CreatedOn'].dt.date <= date_range[1])]
- 
+
 # ── HEADER ────────────────────────────────────────────────────────────────────
-# Using class="msafe-header" so the CSS override forces white text
 st.markdown(
     "<div class='msafe-header' style='background:#0F2044;padding:16px 24px;border-radius:10px;"
     "margin-bottom:14px;'>"
@@ -211,7 +259,7 @@ st.markdown(
     "MSafe Equipments — Inside Sales Dashboard</span>"
     "<span style='color:#8BAFD4 !important;font-size:12px;margin-left:16px;'>KIT19 CRM</span>"
     "</div>", unsafe_allow_html=True)
- 
+
 # ── KPI ROW ───────────────────────────────────────────────────────────────────
 total  = len(filt)
 won    = (filt['Stage']=='Won').sum()
@@ -219,21 +267,19 @@ lost   = (filt['Stage']=='Lost').sum()
 active = (filt['Stage']=='Active').sum()
 high   = filt['FollowupStatus'].isin(HIGH_S).sum()
 cold   = filt['FollowupStatus'].isin(['Call Back','RNR Call Back']).sum()
-# Quotations sent = all leads that reached any "Quoted / Quote" status (ever quoted)
 quotes_sent = filt['FollowupStatus'].isin(QUOTED_SENT_S).sum()
 quote_to_win = round(won / quotes_sent * 100, 1) if quotes_sent else 0
 wr     = round(won/total*100,1) if total else 0
 q2w    = round(won/high*100,1)  if high  else 0
 ec     = filt[filt['Source']=='Existing Client']
 ec_wr  = round((ec['Stage']=='Won').sum()/len(ec)*100,1) if len(ec) else 0
- 
-# 10 KPI cards now (added Quotes Sent + Quote→Win rate)
+
 kcols = st.columns(10)
 def kpi(col, label, value, cls=''):
     col.markdown(
         f"<div class='kpi-block'><div class='kpi-label'>{label}</div>"
         f"<div class='kpi-value {cls}'>{value}</div></div>", unsafe_allow_html=True)
- 
+
 kpi(kcols[0], 'Total Leads',   f'{total:,}')
 kpi(kcols[1], 'Won',           f'{won:,}',        'green')
 kpi(kcols[2], 'Lost',          f'{lost:,}',        'red')
@@ -244,9 +290,9 @@ kpi(kcols[6], 'Quote→Win %',   f'{quote_to_win}%', 'green')
 kpi(kcols[7], 'High Intent',   f'{high:,}',        'amber')
 kpi(kcols[8], 'Cold CB/RNR',   f'{cold:,}',        'red')
 kpi(kcols[9], 'ExClient Win',  f'{ec_wr}%',        'green')
- 
+
 st.markdown("<br>", unsafe_allow_html=True)
- 
+
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📊  Leads by Rep & Source",
@@ -257,7 +303,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "📈  Source Performance",
     "💵  Revenue Summary",
 ])
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 1 — REP × SOURCE CROSS-TAB
 # ══════════════════════════════════════════════════════════════════════════════
@@ -267,7 +313,7 @@ with tab1:
     st.markdown("<p class='sub-note'>"
                 "Raw lead counts. Green = quality sources (Existing Client, Ex-Client Ref.)  |  "
                 "TOTAL row = rep's total leads across all sources.</p>", unsafe_allow_html=True)
- 
+
     if total == 0:
         st.info("No data for current filters.")
     else:
@@ -278,7 +324,7 @@ with tab1:
         ordered += [c for c in pivot.columns if c not in ordered and c!='TOTAL']
         if 'TOTAL' in pivot.columns: ordered.append('TOTAL')
         pivot = pivot[ordered]
- 
+
         def sty_pivot(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for col in df.columns:
@@ -291,7 +337,7 @@ with tab1:
             if 'TOTAL' in df.index:
                 s.loc['TOTAL'] = 'background:#0F2044;color:white;font-weight:700'
             return s
- 
+
         st.dataframe(
             pivot.style
                  .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
@@ -299,7 +345,7 @@ with tab1:
                  .format(lambda x: '' if x==0 else f'{x:,}'),
             use_container_width=True, height=500)
         st.download_button("⬇ Download CSV", pivot.to_csv(), "leads_by_rep_source.csv", "text/csv")
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — CONVERSION BY REP & SOURCE
 # ══════════════════════════════════════════════════════════════════════════════
@@ -311,7 +357,7 @@ with tab2:
                 "numbers with % of that rep-source bucket in brackets. "
                 "Win % column is colour coded 🟢 ≥5%  🟡 2–5%  🔴 0%</p>",
                 unsafe_allow_html=True)
- 
+
     if total == 0:
         st.info("No data.")
     else:
@@ -319,7 +365,7 @@ with tab2:
         rep_order = (filt.groupby('Rep')['Stage']
                      .apply(lambda x:(x=='Won').sum())
                      .sort_values(ascending=False).index.tolist())
- 
+
         for rep in rep_order:
             rep_d = filt[filt['Rep']==rep]
             for src in sorted(rep_d['Source_group'].unique()):
@@ -336,10 +382,10 @@ with tab2:
                 'Won':fmt_n_pct(w,n),'Lost':fmt_n_pct(l,n),'Active':fmt_n_pct(a,n),
                 'Win %':f'{round(w/n*100,1)}%' if n else '0%',
                 '_won_pct':round(w/n*100,1) if n else 0,'_is_total':True,'_rep':rep})
- 
+
         detail = pd.DataFrame(rows)
         detail_disp = detail[['Rep','Source','Leads','Won','Lost','Active','Win %']].copy()
- 
+
         def sty_detail(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for i, row in detail.iterrows():
@@ -355,7 +401,7 @@ with tab2:
                     if row['_won_pct'] > 0:
                         s.loc[i,'Won'] = 'background:#E9F7EF;color:#0A6640'
             return s
- 
+
         st.dataframe(
             detail_disp.style
                        .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
@@ -364,7 +410,7 @@ with tab2:
             use_container_width=True, height=700)
         st.download_button("⬇ Download CSV", detail_disp.to_csv(index=False),
                            "conversion_by_rep_source.csv", "text/csv")
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 3 — PIPELINE BY REP
 # ══════════════════════════════════════════════════════════════════════════════
@@ -375,7 +421,7 @@ with tab3:
                 "How many leads each rep has in each pipeline stage right now. "
                 "🟢 Quoted stages (high intent)  🔴 Call Back / RNR (cold / stuck)  "
                 "🟡 Interested / Catalogue (warm)</p>", unsafe_allow_html=True)
- 
+
     active_f = filt[filt['Stage']=='Active']
     if len(active_f) == 0:
         st.info("No active leads in current filters.")
@@ -390,7 +436,7 @@ with tab3:
         col_order += [c for c in pipe_cross.columns if c not in col_order and c!='TOTAL']
         if 'TOTAL' in pipe_cross.columns: col_order.append('TOTAL')
         pipe_cross = pipe_cross[[c for c in col_order if c in pipe_cross.columns]]
- 
+
         def sty_pipe_cross(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for col in df.columns:
@@ -411,7 +457,7 @@ with tab3:
             if 'TOTAL' in df.index:
                 s.loc['TOTAL'] = 'background:#0F2044;color:white;font-weight:700'
             return s
- 
+
         st.dataframe(
             pipe_cross.style
                       .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
@@ -419,7 +465,7 @@ with tab3:
                       .format(lambda x: '' if x==0 else f'{x:,}'),
             use_container_width=True, height=500)
         st.download_button("⬇ Download CSV", pipe_cross.to_csv(), "pipeline_by_rep.csv", "text/csv")
- 
+
         st.markdown("<div class='sec-hdr'>Where Each Rep's Active Leads Are Sitting</div>",
                     unsafe_allow_html=True)
         summary_rows = []
@@ -434,10 +480,10 @@ with tab3:
                 'Warm — Interested':fmt_n_pct(warm_n,n),
                 '_cold_pct':round(cold_n/n*100,1) if n else 0,
                 '_hot_pct':round(hot_n/n*100,1) if n else 0})
- 
+
         summ = pd.DataFrame(summary_rows).sort_values('_hot_pct', ascending=False)
         summ_disp = summ[['Rep','Total Active','Cold — CB/RNR','High Intent — Quoted','Warm — Interested']].copy()
- 
+
         def sty_summ(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for i,row in summ.iterrows():
@@ -446,14 +492,14 @@ with tab3:
                 if row['_hot_pct'] >= 15:
                     s.loc[i,'High Intent — Quoted'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
             return s
- 
+
         st.dataframe(
             summ_disp.style
                      .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
                      .apply(sty_summ, axis=None)
                      .format({'Total Active':'{:,}'}),
             use_container_width=True, height=450)
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 4 — LOST REASONS BY REP
 # ══════════════════════════════════════════════════════════════════════════════
@@ -464,7 +510,7 @@ with tab4:
                 "How many leads each rep lost and why. "
                 "Darker red = higher count. TOTAL column = rep's total lost leads.</p>",
                 unsafe_allow_html=True)
- 
+
     lost_f = filt[filt['Stage']=='Lost']
     if len(lost_f) == 0:
         st.info("No lost leads in current filters.")
@@ -474,7 +520,7 @@ with tab4:
         if 'TOTAL' in lost_cross.columns:
             non_total = [c for c in lost_cross.columns if c != 'TOTAL']
             lost_cross = lost_cross[non_total + ['TOTAL']]
- 
+
         def sty_lost(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for col in df.columns:
@@ -492,7 +538,7 @@ with tab4:
             if 'TOTAL' in df.index:
                 s.loc['TOTAL'] = 'background:#0F2044;color:white;font-weight:700'
             return s
- 
+
         st.dataframe(
             lost_cross.style
                       .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
@@ -500,7 +546,7 @@ with tab4:
                       .format(lambda x: '' if x==0 else f'{x:,}'),
             use_container_width=True, height=500)
         st.download_button("⬇ Download CSV", lost_cross.to_csv(), "lost_reasons_by_rep.csv", "text/csv")
- 
+
         st.markdown("<div class='sec-hdr'>Loss Rate Summary per Rep</div>", unsafe_allow_html=True)
         loss_summ_rows = []
         for rep in [r for r in lost_f['Rep'].unique()]:
@@ -513,10 +559,10 @@ with tab4:
                 'Loss %':f'{round(n_lost/n_tot*100,1)}%' if n_tot else '0%',
                 'Top Lost Reason':top_reason,
                 '_loss_pct':round(n_lost/n_tot*100,1) if n_tot else 0})
- 
+
         ls = pd.DataFrame(loss_summ_rows).sort_values('_loss_pct', ascending=False)
         ls_disp = ls[['Rep','Total Leads','Lost','Loss %','Top Lost Reason']].copy()
- 
+
         def sty_ls(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for i,row in ls.iterrows():
@@ -525,14 +571,14 @@ with tab4:
                 elif p >= 50: s.loc[i,'Loss %'] = 'background:#FFFBEB;color:#92400E;font-weight:600'
                 else:         s.loc[i,'Loss %'] = 'background:#E9F7EF;color:#0A6640;font-weight:600'
             return s
- 
+
         st.dataframe(
             ls_disp.style
                    .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
                    .apply(sty_ls, axis=None)
                    .format({'Total Leads':'{:,}','Lost':'{:,}'}),
             use_container_width=True, height=450)
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 5 — AMOUNT BY DEAL STAGE
 # ══════════════════════════════════════════════════════════════════════════════
@@ -541,37 +587,30 @@ with tab5:
                 unsafe_allow_html=True)
     st.markdown("<p class='sub-note'>"
                 "Shows exactly which deal stages have quote amounts filled in. "
-                "Use this to find where your team IS recording values and where they aren't. "
                 "Green = amount present  🔴 = zero / blank.</p>", unsafe_allow_html=True)
- 
-    amt_col = None
-    for possible in ['quotation_total_amount','QuotationAmount','Amount','QuoteValue',
-                     'quote_amount','TotalAmount','QuotationTotalAmount','quotation_amount',
-                     'Quote Amount','Quote_Amount','EstimatedValue','estimated_value']:
-        if possible in filt.columns:
-            amt_col = possible
-            break
- 
+
+    # Detect amount column from the current filtered dataframe
+    amt_col = find_amount_col(filt)
+
     with st.expander("🔍 Debug — All columns in your CRM file"):
         all_cols = list(filt.columns)
-        st.write(f"**{len(all_cols)} columns found:**")
+        st.write(f"**{len(all_cols)} columns found:**  |  **Detected amount column:** `{amt_col or 'NONE FOUND'}`")
         numeric_cols = []
         for col in all_cols:
             try:
                 series = pd.to_numeric(filt[col], errors='coerce')
                 if series.notna().sum() > 0 and series.sum() != 0:
-                    numeric_cols.append(f"✅ {col}  (has numeric values, sum={series.sum():,.0f})")
+                    numeric_cols.append(f"✅ {col}  (has numeric values, non-null={series.notna().sum()}, sum={series.sum():,.0f})")
                 else:
                     numeric_cols.append(f"○ {col}")
             except:
                 numeric_cols.append(f"○ {col}")
         st.write("\n".join(numeric_cols))
- 
+
     if amt_col is None:
         st.warning(
-            "⚠️ No recognised amount column found. "
-            "Check the debug expander above — look for a column marked ✅ with numeric values. "
-            "Common KIT19 column names: `quotation_total_amount`, `QuotationAmount`, `Amount`."
+            "⚠️ No amount column found. Check the debug expander above — look for a column "
+            "marked ✅ with numeric values, then share its exact name to add it to the detection list."
         )
         st.markdown("<div class='sec-hdr'>Lead Count by Deal Stage (no amount data yet)</div>",
                     unsafe_allow_html=True)
@@ -582,19 +621,20 @@ with tab5:
             Active=('Stage', lambda x:(x=='Active').sum()),
         ).sort_values('Leads', ascending=False)
         st.dataframe(stage_counts, use_container_width=True, height=500)
- 
+
     else:
+        st.success(f"✅ Amount column detected: **`{amt_col}`**")
         filt_amt = filt.copy()
         filt_amt[amt_col] = pd.to_numeric(filt_amt[amt_col], errors='coerce').fillna(0)
         filt_amt['has_amount'] = filt_amt[amt_col] > 0
- 
+
         st.markdown("<div class='sec-hdr'>Where Is Amount Being Filled? — By Deal Stage</div>",
                     unsafe_allow_html=True)
         st.markdown("<p class='sub-note'>"
                     "Every FollowupStatus stage: how many leads, how many have amount filled, "
                     "total value, and fill rate. Sorted by total value descending.</p>",
                     unsafe_allow_html=True)
- 
+
         stage_rows = []
         for stage_name in sorted(filt_amt['FollowupStatus'].dropna().unique()):
             sd = filt_amt[filt_amt['FollowupStatus'] == stage_name]
@@ -614,11 +654,11 @@ with tab5:
                 '_fill_pct': round(filled/n*100,1) if n else 0,
                 '_total_val': total_val,
             })
- 
+
         stage_df = pd.DataFrame(stage_rows).sort_values('_total_val', ascending=False)
         stage_disp = stage_df[['Deal Stage','CRM Stage','Leads','With Amount',
                                 'Fill Rate','Total Value ₹','Avg Value ₹']].copy()
- 
+
         def sty_stage(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for i, row in stage_df.iterrows():
@@ -629,7 +669,7 @@ with tab5:
                 if row['_total_val'] > 0:
                     s.loc[i,'Total Value ₹'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
             return s
- 
+
         st.dataframe(
             stage_disp.style
                       .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
@@ -639,12 +679,12 @@ with tab5:
             use_container_width=True, height=500)
         st.download_button("⬇ Download CSV", stage_disp.to_csv(index=False),
                            "amount_by_stage.csv", "text/csv")
- 
+
         st.markdown("<div class='sec-hdr'>Amount Fill Rate — By Rep</div>", unsafe_allow_html=True)
         st.markdown("<p class='sub-note'>"
                     "Which reps are recording quote values and which aren't. "
                     "🟢 ≥50% filled  🟡 10–50%  🔴 &lt;10%</p>", unsafe_allow_html=True)
- 
+
         rep_amt_rows = []
         for rep in sorted(filt_amt['Rep'].unique()):
             rd = filt_amt[filt_amt['Rep']==rep]
@@ -662,9 +702,9 @@ with tab5:
                 'Lost Value ₹': lost_d[amt_col].sum(),
                 '_fill_pct': round(filled/n*100,1) if n else 0,
             })
- 
+
         rep_amt_df = pd.DataFrame(rep_amt_rows).sort_values('_fill_pct', ascending=False)
- 
+
         tot_n = len(filt_amt); tot_filled = filt_amt['has_amount'].sum()
         rep_amt_rows.append({
             'Rep': 'TOTAL',
@@ -678,7 +718,7 @@ with tab5:
         })
         rep_amt_df2 = pd.DataFrame(rep_amt_rows)
         rep_disp = rep_amt_df2.drop(columns=['_fill_pct'])
- 
+
         def sty_rep_amt(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for i, row in rep_amt_df2.iterrows():
@@ -692,7 +732,7 @@ with tab5:
                 if row['Won Value ₹'] > 0:
                     s.loc[i,'Won Value ₹'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
             return s
- 
+
         st.dataframe(
             rep_disp.style
                     .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
@@ -703,7 +743,7 @@ with tab5:
             use_container_width=True, height=480)
         st.download_button("⬇ Download CSV", rep_disp.to_csv(index=False),
                            "amount_by_rep.csv", "text/csv")
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 6 — SOURCE PERFORMANCE
 # ══════════════════════════════════════════════════════════════════════════════
@@ -714,13 +754,13 @@ with tab6:
                 "How each lead source is performing: volume, conversion, pipeline health, and loss. "
                 "Answers: which sources give the best quality leads, not just the most leads.</p>",
                 unsafe_allow_html=True)
- 
+
     if total == 0:
         st.info("No data for current filters.")
     else:
         st.markdown("<div class='sec-hdr'>Source Summary — Volume, Win Rate, Loss Rate</div>",
                     unsafe_allow_html=True)
- 
+
         src_rows = []
         for src in sorted(filt['Source_group'].unique()):
             sd = filt[filt['Source_group']==src]
@@ -732,9 +772,7 @@ with tab6:
             cold_n = sd['FollowupStatus'].isin(['Call Back','RNR Call Back']).sum()
             wr_src = round(w/n*100,1) if n else 0
             lr_src = round(l/n*100,1) if n else 0
-            hr_src = round(high_n/n*100,1) if n else 0
-            cr_src = round(cold_n/n*100,1) if n else 0
- 
+
             src_rows.append({
                 'Source': src,
                 'Leads': n,
@@ -746,12 +784,12 @@ with tab6:
                 'Active': a,
                 'High Intent': fmt_n_pct(high_n, n),
                 'Cold CB/RNR': fmt_n_pct(cold_n, n),
-                '_wr': wr_src, '_lr': lr_src, '_hr': hr_src, '_cr': cr_src,
+                '_wr': wr_src, '_lr': lr_src,
                 '_leads': n, '_won': w,
             })
- 
+
         src_df = pd.DataFrame(src_rows).sort_values('_won', ascending=False)
- 
+
         src_rows.append({
             'Source': 'TOTAL',
             'Leads': total,
@@ -763,12 +801,12 @@ with tab6:
             'Active': active,
             'High Intent': fmt_n_pct(high, total),
             'Cold CB/RNR': fmt_n_pct(cold, total),
-            '_wr': wr, '_lr': 0, '_hr': 0, '_cr': 0, '_leads': total, '_won': won,
+            '_wr': wr, '_lr': 0, '_leads': total, '_won': won,
         })
         src_df_full = pd.DataFrame(src_rows)
         src_disp = src_df_full[['Source','Leads','Lead %','Won','Win Rate',
                                  'Lost','Loss Rate','Active','High Intent','Cold CB/RNR']].copy()
- 
+
         def sty_src(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for i, row in src_df_full.iterrows():
@@ -787,7 +825,7 @@ with tab6:
                 if row['Source'] in ('Existing Client','Ex-Client Ref.'):
                     s.loc[i,'Source'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
             return s
- 
+
         st.dataframe(
             src_disp.style
                     .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
@@ -796,13 +834,13 @@ with tab6:
             use_container_width=True, height=450)
         st.download_button("⬇ Download CSV", src_disp.to_csv(index=False),
                            "source_performance.csv", "text/csv")
- 
+
         st.markdown("<div class='sec-hdr'>Source × Pipeline Stage — Where Each Source's Leads End Up</div>",
                     unsafe_allow_html=True)
         st.markdown("<p class='sub-note'>"
                     "Cross-tab of source vs FollowupStatus. Shows quality of each source's pipeline.</p>",
                     unsafe_allow_html=True)
- 
+
         src_stage_cross = pd.crosstab(filt['Source_group'], filt['FollowupStatus'],
                                        margins=True, margins_name='TOTAL')
         won_cols_ss  = [c for c in src_stage_cross.columns if c in WON_S]
@@ -813,7 +851,7 @@ with tab6:
         col_ord_ss  += [c for c in src_stage_cross.columns if c not in col_ord_ss and c!='TOTAL']
         if 'TOTAL' in src_stage_cross.columns: col_ord_ss.append('TOTAL')
         src_stage_cross = src_stage_cross[[c for c in col_ord_ss if c in src_stage_cross.columns]]
- 
+
         def sty_src_stage(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for col in df.columns:
@@ -830,24 +868,19 @@ with tab6:
             if 'TOTAL' in df.index:
                 s.loc['TOTAL'] = 'background:#0F2044;color:white;font-weight:700'
             return s
- 
+
         st.dataframe(
             src_stage_cross.style
                            .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
                            .apply(sty_src_stage, axis=None)
                            .format(lambda x: '' if x==0 else f'{x:,}'),
             use_container_width=True, height=400)
- 
+
         st.markdown("<div class='sec-hdr'>Source × Rep — Which Rep Handles Which Source Most</div>",
                     unsafe_allow_html=True)
-        st.markdown("<p class='sub-note'>"
-                    "Lead count per rep per source. Helps spot if certain sources are concentrated "
-                    "with one rep and whether that rep is converting them well.</p>",
-                    unsafe_allow_html=True)
- 
         src_rep_cross = pd.crosstab(filt['Source_group'], filt['Rep'],
                                      margins=True, margins_name='TOTAL')
- 
+
         def sty_src_rep(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             if 'TOTAL' in df.columns:
@@ -855,7 +888,7 @@ with tab6:
             if 'TOTAL' in df.index:
                 s.loc['TOTAL'] = 'background:#0F2044;color:white;font-weight:700'
             return s
- 
+
         st.dataframe(
             src_rep_cross.style
                          .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
@@ -864,14 +897,14 @@ with tab6:
             use_container_width=True, height=400)
         st.download_button("⬇ Download CSV", src_rep_cross.to_csv(),
                            "source_by_rep.csv", "text/csv")
- 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 7 — REVENUE SUMMARY
 # ══════════════════════════════════════════════════════════════════════════════
 with tab7:
     st.markdown("<div class='sec-hdr'>💡 Revenue Summary — Rep-wise & Source-wise</div>",
                 unsafe_allow_html=True)
- 
+
     c_info1, c_info2 = st.columns(2)
     with c_info1:
         st.markdown("""
@@ -887,28 +920,39 @@ with tab7:
 </p>
 </div>""", unsafe_allow_html=True)
     with c_info2:
-        st.markdown("""
+        amt_col_tab7 = find_amount_col(filt)
+        if amt_col_tab7:
+            filt_check = filt.copy()
+            filt_check[amt_col_tab7] = pd.to_numeric(filt_check[amt_col_tab7], errors='coerce').fillna(0)
+            fill_count = (filt_check[amt_col_tab7] > 0).sum()
+            fill_pct_overall = round(fill_count / len(filt_check) * 100, 1) if len(filt_check) else 0
+            info_color = '#0A6640' if fill_pct_overall >= 30 else '#B91C1C'
+            info_icon  = '✅' if fill_pct_overall >= 30 else '⚠'
+            st.markdown(f"""
 <div style='background:white;border-radius:8px;padding:16px;border:1px solid #E2E8F0;
-            border-left:4px solid #B91C1C;font-family:Arial,sans-serif;'>
-<p style='color:#B91C1C;font-weight:700;font-size:13px;margin:0 0 8px 0;'>⚠ DATA QUALITY WARNING</p>
+            border-left:4px solid {info_color};font-family:Arial,sans-serif;'>
+<p style='color:{info_color};font-weight:700;font-size:13px;margin:0 0 8px 0;'>{info_icon} DATA QUALITY</p>
 <p style='color:#334155;font-size:12px;margin:4px 0;'>
-  Quote Value is currently <b>0–5% filled</b> across all reps in KIT19.<br>
-  This means revenue figures reflect only leads where a rep manually entered a quote amount.<br><br>
-  <b>To fix:</b> Reps must fill Quote Value in the CRM when sending a quotation.
-  Once fill rate is above 70%, this becomes the most important review metric.
+  Amount column: <b><code>{amt_col_tab7}</code></b><br>
+  <b>{fill_count:,} of {len(filt_check):,} leads</b> have a quote value filled ({fill_pct_overall}%).<br><br>
+  {'Good fill rate — revenue figures are reliable.' if fill_pct_overall >= 30
+   else 'Fill rate is low. Reps must enter quote values in KIT19 when sending quotations.'}
 </p>
 </div>""", unsafe_allow_html=True)
- 
+        else:
+            st.markdown("""
+<div style='background:white;border-radius:8px;padding:16px;border:1px solid #E2E8F0;
+            border-left:4px solid #B91C1C;font-family:Arial,sans-serif;'>
+<p style='color:#B91C1C;font-weight:700;font-size:13px;margin:0 0 8px 0;'>⚠ NO AMOUNT COLUMN FOUND</p>
+<p style='color:#334155;font-size:12px;margin:4px 0;'>
+  Check the '💰 Amount by Deal Stage' tab → Debug expander for the exact column name in your file.
+</p>
+</div>""", unsafe_allow_html=True)
+
     st.markdown("<br>", unsafe_allow_html=True)
- 
-    amt_col = None
-    for possible in ['quotation_total_amount','QuotationAmount','Amount','QuoteValue',
-                     'quote_amount','TotalAmount','QuotationTotalAmount','quotation_amount',
-                     'Quote Amount','Quote_Amount','EstimatedValue','estimated_value']:
-        if possible in filt.columns:
-            amt_col = possible
-            break
- 
+
+    amt_col = find_amount_col(filt)
+
     if amt_col is None:
         st.warning("No amount column found. Check the '💰 Amount by Deal Stage' tab for the debug tool.")
         sample = pd.DataFrame({
@@ -924,14 +968,14 @@ with tab7:
     else:
         filt_amt = filt.copy()
         filt_amt[amt_col] = pd.to_numeric(filt_amt[amt_col], errors='coerce').fillna(0)
- 
+
         st.markdown("<div class='sec-hdr'>Revenue & Pipeline Value — Rep-wise</div>",
                     unsafe_allow_html=True)
- 
+
         rep_order_amt = (filt_amt.groupby('Rep')['Stage']
                           .apply(lambda x:(x=='Won').sum())
                           .sort_values(ascending=False).index.tolist())
- 
+
         amt_rows = []
         for rep in rep_order_amt:
             rd = filt_amt[filt_amt['Rep']==rep]
@@ -951,7 +995,7 @@ with tab7:
                 'Open Pipeline ₹':f'₹{pip_val:,.0f}' if pip_val > 0 else '—',
                 'Lost Value ₹':f'₹{lost_val:,.0f}' if lost_val > 0 else '—',
                 'Value Fill %':f'{fill_pct}%','_fill':fill_pct,'_rev':rev_won})
- 
+
         all_won = filt_amt[filt_amt['Stage']=='Won']
         all_quot = filt_amt[filt_amt['FollowupStatus'].str.contains('Quot|Quote', na=False, case=False)]
         all_lost = filt_amt[filt_amt['Stage']=='Lost']
@@ -963,10 +1007,10 @@ with tab7:
             'Open Pipeline ₹':f'₹{all_quot[amt_col].sum():,.0f}',
             'Lost Value ₹':f'₹{all_lost[amt_col].sum():,.0f}',
             'Value Fill %':f'{tot_fill}%','_fill':tot_fill,'_rev':all_won[amt_col].sum()})
- 
+
         amt_df = pd.DataFrame(amt_rows)
         amt_disp = amt_df.drop(columns=['_fill','_rev']).set_index('Rep')
- 
+
         def sty_amt(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for i,row in amt_df.iterrows():
@@ -982,14 +1026,14 @@ with tab7:
                 if row['_rev'] > 0:
                     s.loc[idx,'Revenue Won ₹'] = 'background:#E9F7EF;color:#0A6640;font-weight:700'
             return s
- 
+
         st.dataframe(
             amt_disp.style
                     .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
                     .apply(sty_amt, axis=None),
             use_container_width=True, height=480)
         st.download_button("⬇ Download CSV", amt_disp.to_csv(), "revenue_by_rep.csv", "text/csv")
- 
+
         st.markdown("<div class='sec-hdr'>Revenue by Source</div>", unsafe_allow_html=True)
         src_amt_rows = []
         for src in sorted(filt_amt['Source_group'].unique()):
@@ -1001,10 +1045,10 @@ with tab7:
                 'Revenue Won ₹':f'₹{rev:,.0f}' if rev > 0 else '—',
                 'Avg per Won ₹':f'₹{avg:,.0f}' if avg > 0 else '—',
                 '_rev':rev,'_won':len(won_sd)})
- 
+
         src_amt = pd.DataFrame(src_amt_rows).sort_values('_rev', ascending=False)
         src_disp = src_amt.drop(columns=['_rev','_won']).set_index('Source')
- 
+
         def sty_src_amt(df):
             s = pd.DataFrame('', index=df.index, columns=df.columns)
             for i,row in src_amt.iterrows():
@@ -1014,17 +1058,19 @@ with tab7:
                 if row['_won'] > 0:
                     s.loc[idx,'Won Deals'] = 'background:#E9F7EF;color:#0A6640;font-weight:600'
             return s
- 
+
         st.dataframe(
             src_disp.style
                     .set_properties(**{'color':'#0F172A','font-size':'13px','font-weight':'500'})
                     .apply(sty_src_amt, axis=None),
             use_container_width=True, height=360)
         st.download_button("⬇ Download CSV", src_disp.to_csv(), "revenue_by_source.csv", "text/csv")
- 
+
 # ── FOOTER ────────────────────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(
     f"<p style='text-align:center;color:#94A3B8;font-size:11px;'>"
     f"MSafe Equipments  |  KIT19 CRM  |  {len(df_raw):,} leads in file  |  "
     f"{len(filt):,} leads shown with current filters</p>", unsafe_allow_html=True)
+PYEOF
+echo "Done"
