@@ -138,7 +138,7 @@ def load(fb):
     df['Rep'] = df['LastFollowupCreatedByName'].str.replace('50988-','',regex=False)
     df.loc[df['is_admin'],'Rep'] = 'Admin'
     if 'CreatedOn' in df.columns:
-        df['CreatedOn']    = pd.to_datetime(df['CreatedOn'], errors='coerce')
+        df['CreatedOn']    = pd.to_datetime(df['CreatedOn'], dayfirst=True, errors='coerce')
         df['age_days']     = (TODAY - df['CreatedOn']).dt.days.clip(lower=0)
         df['Month']        = df['CreatedOn'].dt.strftime('%b %Y')
     if 'LastFollowupedOn' in df.columns:
@@ -249,8 +249,9 @@ else:
 
 # Date Range Filter
 if 'CreatedOn' in reps_df.columns:
-    min_date = reps_df['CreatedOn'].min().date()
-    max_date = reps_df['CreatedOn'].max().date()
+    valid_dates = reps_df['CreatedOn'].dropna()
+    min_date = valid_dates.min().date()
+    max_date = valid_dates.max().date()
 
     date_range = st.sidebar.date_input(
         "Created Date Range",
@@ -278,9 +279,12 @@ if sel_months and 'Month' in base.columns:
 if 'CreatedOn' in base.columns and len(date_range) == 2:
     start_date, end_date = date_range
 
+    start_date = pd.Timestamp(start_date)
+    end_date = pd.Timestamp(end_date)
+
     base = base[
-        (base['CreatedOn'].dt.date >= start_date) &
-        (base['CreatedOn'].dt.date <= end_date)
+        (base['CreatedOn'] >= start_date) &
+        (base['CreatedOn'] < end_date + pd.Timedelta(days=1))
     ]
 
 rep_order = (base.groupby('Rep')['Stage']
