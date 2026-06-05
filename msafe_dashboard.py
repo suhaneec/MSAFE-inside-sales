@@ -23,8 +23,8 @@ html,body,.stApp,[data-testid="stAppViewContainer"],
 [data-testid="stMain"] *,.block-container *,
 .stMarkdown *,[data-testid="stMarkdownContainer"] *{color:#0F172A !important;}
 /* Sidebar */
-section[data-testid="stSidebar"],section[data-testid="stSidebar"]>div{background:#0F2044 !important;}
-section[data-testid="stSidebar"] *{color:white !important;}
+section[data-testid="stSidebar"],section[data-testid="stSidebar"]>div{background:#F8FAFC !important;}
+section[data-testid="stSidebar"] *{color:#0F172A !important;}
 section[data-testid="stSidebar"] hr{border-color:#2D5F9E !important;}
 section[data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"]>div{
     background:#162955 !important;border:1px solid #2D5F9E !important;border-radius:6px !important;}
