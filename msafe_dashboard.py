@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from io import BytesIO
+from datetime import date as date_type
 
 st.set_page_config(page_title="MSafe CRM Dashboard", page_icon="📊",
                    layout="wide", initial_sidebar_state="expanded")
@@ -22,9 +23,8 @@ html,body,.stApp,[data-testid="stAppViewContainer"],
     background:#F8FAFC !important;color:#0F172A !important;}
 [data-testid="stMain"] *,.block-container *,
 .stMarkdown *,[data-testid="stMarkdownContainer"] *{color:#0F172A !important;}
-/* Sidebar */
-section[data-testid="stSidebar"],section[data-testid="stSidebar"]>div{background:#F8FAFC !important;}
-section[data-testid="stSidebar"] *{color:#0F172A !important;}
+section[data-testid="stSidebar"],section[data-testid="stSidebar"]>div{background:#0F2044 !important;}
+section[data-testid="stSidebar"] *{color:white !important;}
 section[data-testid="stSidebar"] hr{border-color:#2D5F9E !important;}
 section[data-testid="stSidebar"] .stMultiSelect div[data-baseweb="select"]>div{
     background:#162955 !important;border:1px solid #2D5F9E !important;border-radius:6px !important;}
@@ -39,7 +39,11 @@ section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] *,
 section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] span,
 section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzoneInstructions"] small,
 section[data-testid="stSidebar"] [data-testid="stFileUploader"] span{color:#8BAFD4 !important;}
-/* KPI */
+section[data-testid="stSidebar"] .stDateInput input,
+section[data-testid="stSidebar"] .stDateInput div[data-baseweb="input"],
+section[data-testid="stSidebar"] .stDateInput div[data-baseweb="base-input"]{
+    background:#162955 !important;border:1px solid #2D5F9E !important;
+    border-radius:6px !important;color:white !important;}
 .kpi{background:white;border-radius:10px;padding:14px;text-align:center;
      box-shadow:0 2px 6px rgba(0,0,0,0.07);border-top:3px solid #CBD5E1;height:80px;
      display:flex;flex-direction:column;justify-content:center;}
@@ -48,44 +52,36 @@ section[data-testid="stSidebar"] [data-testid="stFileUploader"] span{color:#8BAF
 .kpi-v{font-size:22px;font-weight:800;color:#0F2044;}
 .kpi-v.g{color:#0A6640;}.kpi-v.r{color:#B91C1C;}
 .kpi-v.a{color:#92400E;}.kpi-v.b{color:#1D4ED8;}
-/* Drill box */
 .drill-box{background:#EEF2FF;border:1px solid #C7D2FE;border-left:4px solid #0F2044;
            border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:12px;}
-.drill-title{font-weight:700;color:#0F2044;font-size:13px;margin-bottom:8px;}
-/* Section */
 .sec{background:#0F2044;color:white !important;padding:9px 16px;border-radius:6px;
      font-weight:700;font-size:13px;margin:20px 0 8px;}
 .note{font-size:11px;color:#64748B;font-style:italic;margin:0 0 8px;}
-/* Dataframe */
+.col-hdr{font-size:11px;font-weight:700;color:#475569;
+         border-bottom:2px solid #0F2044;padding-bottom:3px;margin-bottom:4px;}
 [data-testid="stDataFrame"] th,[data-testid="stDataFrame"] [role="columnheader"],
 [data-testid="stDataFrame"] [role="columnheader"]*{
     background:#1B3A6B !important;color:white !important;
     font-size:12px !important;font-weight:700 !important;}
 [data-testid="stDataFrame"] td,[data-testid="stDataFrame"] [role="gridcell"],
 [data-testid="stDataFrame"] [role="gridcell"]*{color:#0F172A !important;font-size:12px !important;}
-[data-testid="stDataFrame"] [role="rowheader"],
-[data-testid="stDataFrame"] [role="rowheader"]*{
+[data-testid="stDataFrame"] [role="rowheader"],[data-testid="stDataFrame"] [role="rowheader"]*{
     color:#0F172A !important;font-size:12px !important;
     font-weight:600 !important;background:#F1F5F9 !important;}
 </style>""", unsafe_allow_html=True)
 
 # ── CONSTANTS ──────────────────────────────────────────────────────────────────
-WON_S  = ['Quoted Order Won And Executed']
-LOST_S = ['Not-Interested','Not Search Our Product','Regret',
-          'Other Department Working','Wrong Number','No Response on RNR',
-          'Already Purchased','Quoted Order Lost',
-          'Repeat Lead','Rental Period Less Than 7 Days']   # confirmed lost
-OPEN_S_LABEL = ("Call Back, RNR Call Back, Quoted In Follow Up, Quoted Order In Pipeline, "
-                "Quote In Progress, Interested Quote Sent, Interested Catalogue Sent, "
-                "Quoted Not Picking Call, Quoted Project On Hold, MS Requirement Call Back, "
-                "and all other active stages")
-WON_S_LABEL  = "Quoted Order Won And Executed"
-LOST_S_LABEL = ("Not Interested, Not Search Our Product, Regret, Other Department Working, "
-                "Wrong Number, No Response on RNR, Already Purchased, Quoted Order Lost, "
-                "Repeat Lead, Rental Period Less Than 7 Days")
-
-ADMIN = ['msafe947362','50988-Surbhi']
-SRC_MAP = {
+WON_S         = ['Quoted Order Won And Executed']
+LOST_FROM_Q   = ['Quoted Order Lost']
+QUOTED_S      = ['Quoted In Follow Up','Quoted Order In Pipeline','Quote In Progress',
+                 'Interested Quote Sent','Quoted Not Picking Call','Quoted Project On Hold']
+LOST_S        = ['Not-Interested','Not Search Our Product','Regret',
+                 'Other Department Working','Wrong Number','No Response on RNR',
+                 'Already Purchased','Quoted Order Lost',
+                 'Repeat Lead','Rental Period Less Than 7 Days']
+RNR_S         = ['Call Back','RNR Call Back']
+ADMIN         = ['msafe947362','50988-Surbhi']
+SRC_MAP       = {
     'Just Dial':'JustDial','Justdial':'JustDial',
     'Paid clasifieds':'IndiaMart','Paid classifieds':'IndiaMart','Indiamart':'IndiaMart',
     'Exisiting Client Refrence':'Ex-Client Ref.','Existing Client Reference':'Ex-Client Ref.',
@@ -94,30 +90,21 @@ SRC_MAP = {
     'SEO Landing Pages (Generic)':'Google Ads','Google-Ad (Generic)':'Google Ads',
     'Advertisement':'Other','Aajjo':'Other',
 }
-MAIN_SRC  = ['JustDial','IndiaMart','IVR Call','Existing Client','Ex-Client Ref.','Facebook','Other']
-SRC_SHORT = {'JustDial':'JD','IndiaMart':'IM','IVR Call':'IVR',
-             'Existing Client':'EC','Ex-Client Ref.':'ECR','Facebook':'FB','Other':'Oth'}
-RNR_S     = ['Call Back','RNR Call Back']
-TODAY     = pd.Timestamp.now().normalize()   # dynamic — works for any data period
+MAIN_SRC      = ['JustDial','IndiaMart','IVR Call','Existing Client','Ex-Client Ref.','Facebook','Other']
+SRC_SHORT     = {'JustDial':'JD','IndiaMart':'IM','IVR Call':'IVR',
+                 'Existing Client':'EC','Ex-Client Ref.':'ECR','Facebook':'FB','Other':'Oth'}
+TODAY         = pd.Timestamp.now().normalize()
+BASE          = {'color':'#0F172A','font-size':'12px','font-weight':'500'}
 
-BASE = {'color':'#0F172A','font-size':'12px','font-weight':'500'}
-def get_rating(win_pct):
-    if win_pct >= 8:
-        return "🟢 Green"
-    elif win_pct >= 4:
-        return "🟡 Yellow"
-    else:
-        return "🔴 Red"
+WON_LABEL  = "Quoted Order Won And Executed"
+LOST_LABEL = ("Not Interested · Not Search Our Product · Regret · Other Department Working · "
+              "Wrong Number · No Response on RNR · Already Purchased · Quoted Order Lost · "
+              "Repeat Lead · Rental Period Less Than 7 Days")
+OPEN_LABEL = ("Call Back · RNR Call Back · Quoted In Follow Up · Quoted Order In Pipeline · "
+              "Quote In Progress · Interested Quote Sent · Interested Catalogue Sent · "
+              "Quoted Not Picking Call · Quoted Project On Hold · MS Requirement Call Back · "
+              "and all remaining active stages")
 
-def get_hygiene_rating(score):
-    if score >= 80:
-        return "🟢 Green"
-    elif score >= 60:
-        return "🟡 Yellow"
-    else:
-        return "🔴 Red"
-
-# ── LEAD DISPLAY COLUMNS ───────────────────────────────────────────────────────
 LCOLS = {
     'LeadNo':'Lead #','PersonName':'Customer','CompanyName':'Company',
     'City':'City','Source':'Source','Category':'Category',
@@ -126,33 +113,66 @@ LCOLS = {
     'LastFollowupedOn':'Last Contact','Remarks':'Remarks',
 }
 
+# ── RAG HELPERS ────────────────────────────────────────────────────────────────
+RAG = {0:'🔴', 1:'🟡', 2:'🟢'}
+RAG_ORDER = {0:0, 1:1, 2:2}   # red first
+
+def rag_win(wp):
+    if wp < 2: return 0
+    if wp < 5: return 1
+    return 2
+
+def rag_stale(pct_30):       # % of open leads that are 30+ days old
+    if pct_30 > 40: return 0
+    if pct_30 > 20: return 1
+    return 2
+
+def rag_hygiene(issue_pct):  # % of open leads with at least one issue
+    if issue_pct > 50: return 0
+    if issue_pct > 25: return 1
+    return 2
+
+def rag_quote_conv(pct):     # quote → win conversion %
+    if pct < 15: return 0
+    if pct < 30: return 1
+    return 2
+
+def rag_quoted_age(pct_30):  # % of quoted leads stuck 30+ days
+    if pct_30 > 30: return 0
+    if pct_30 > 15: return 1
+    return 2
+
+def rag_src(wp):
+    if wp < 2: return 0
+    if wp < 10: return 1
+    return 2
+
 # ── DATA LOAD ──────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner="Loading CRM data…")
 def load(fb):
     df = pd.read_excel(BytesIO(fb), engine='openpyxl')
     df['Stage'] = df['FollowupStatus'].apply(
-        lambda x: 'Won' if x in WON_S else ('Lost' if x in LOST_S else 'Open'))
+        lambda x:'Won' if x in WON_S else('Lost' if x in LOST_S else 'Open'))
     df['Source'] = df['SourceName'].replace(SRC_MAP)
-    df['Source_group'] = df['Source'].apply(lambda x: x if x in MAIN_SRC else 'Other')
+    df['Source_group'] = df['Source'].apply(lambda x:x if x in MAIN_SRC else 'Other')
     df['is_admin'] = df['LastFollowupCreatedByName'].isin(ADMIN)
     df['Rep'] = df['LastFollowupCreatedByName'].str.replace('50988-','',regex=False)
     df.loc[df['is_admin'],'Rep'] = 'Admin'
     if 'CreatedOn' in df.columns:
-        df['CreatedOn']    = pd.to_datetime(df['CreatedOn'], dayfirst=True, errors='coerce')
-        df['age_days']     = (TODAY - df['CreatedOn']).dt.days.clip(lower=0)
-        df['Month']        = df['CreatedOn'].dt.strftime('%b %Y')
+        df['CreatedOn']  = pd.to_datetime(df['CreatedOn'], errors='coerce')
+        df['age_days']   = (TODAY - df['CreatedOn']).dt.days.clip(lower=0)
     if 'LastFollowupedOn' in df.columns:
-        df['LastFollowupedOn'] = pd.to_datetime(df['LastFollowupedOn'], errors='coerce')
+        df['LastFollowupedOn']  = pd.to_datetime(df['LastFollowupedOn'], errors='coerce')
+        df['last_followup_age'] = (TODAY - df['LastFollowupedOn']).dt.days.clip(lower=0)
     if 'FollowupDate' in df.columns:
         df['FollowupDate_dt'] = pd.to_datetime(df['FollowupDate'], errors='coerce')
     if 'AmountPaid' in df.columns:
         df['AmountPaid'] = pd.to_numeric(df['AmountPaid'], errors='coerce').fillna(0)
     return df
 
-def prep_lead_table(df):
+def prep_leads(df):
     cols = [c for c in LCOLS if c in df.columns]
-    out  = df[cols].copy()
-    out.columns = [LCOLS[c] for c in cols]
+    out  = df[cols].copy(); out.columns=[LCOLS[c] for c in cols]
     if 'Created'      in out: out['Created']      = out['Created'].dt.strftime('%d %b %Y')
     if 'Last Contact' in out: out['Last Contact']  = out['Last Contact'].dt.strftime('%d %b %Y')
     return out
@@ -161,51 +181,54 @@ def show_drill():
     if st.session_state.drill_df is None: return
     df  = st.session_state.drill_df
     lbl = st.session_state.drill_label
-    st.markdown(f"<div class='drill-box'><div class='drill-title'>"
-                f"📋 {lbl}  —  {len(df):,} leads</div></div>",
+    st.markdown(f"<div class='drill-box'><b style='color:#0F2044;'>📋 {lbl}</b> — {len(df):,} leads</div>",
                 unsafe_allow_html=True)
-    if len(df) == 0:
-        st.info("No leads match.")
-        return
-    ld = prep_lead_table(df)
+    if len(df)==0: st.info("No leads."); return
+    ld = prep_leads(df)
     sty = ld.style.set_properties(**BASE)
     if 'Stage' in ld.columns:
         sty = sty.map(lambda v:(
             'background:#E9F7EF;color:#0A6640;font-weight:700' if v=='Won'
-            else ('background:#FEF2F2;color:#B91C1C;font-weight:700' if v=='Lost'
-                  else 'background:#FFFBEB;color:#92400E')),
-            subset=['Stage'])
+            else('background:#FEF2F2;color:#B91C1C;font-weight:700' if v=='Lost'
+                 else 'background:#FFFBEB;color:#92400E')),subset=['Stage'])
     st.dataframe(sty, use_container_width=True, height=360)
-    st.download_button("⬇ Download these leads",
-                       ld.to_csv(index=False), "leads_drill.csv",
-                       "text/csv", key="dl_drill")
-    if st.button("✕  Close this view", key="close_drill"):
-        st.session_state.drill_df = None
-        st.rerun()
+    st.download_button("⬇ Download CSV", ld.to_csv(index=False),
+                       "leads.csv","text/csv",key="dl_drill")
+    if st.button("✕ Close", key="close_d"):
+        st.session_state.drill_df=None; st.rerun()
 
-# ── TABLE HELPER ───────────────────────────────────────────────────────────────
-def tbl_header(cols, widths):
-    row = st.columns(widths)
-    for c,lbl in zip(row, cols):
-        c.markdown(f"<div style='font-size:11px;font-weight:700;color:#475569;"
-                   f"border-bottom:2px solid #0F2044;padding-bottom:3px;"
-                   f"margin-bottom:4px;'>{lbl}</div>", unsafe_allow_html=True)
+# ── LAYOUT HELPERS ─────────────────────────────────────────────────────────────
+def hdrs(labels, widths):
+    cols = st.columns(widths)
+    for c,l in zip(cols,labels):
+        c.markdown(f"<div class='col-hdr'>{l}</div>",unsafe_allow_html=True)
 
-def tbl_sep():
+def sep():
     st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:2px 0;'>",
                 unsafe_allow_html=True)
 
-def num_btn(col, val, key, df, label, color='#0F172A'):
-    if val == 0:
-        col.markdown(f"<div style='font-size:13px;color:#CBD5E1;padding:5px 0;'>—</div>",
-                     unsafe_allow_html=True)
-    elif col.button(f"{val:,}", key=key, help=label):
-        drill(df, label)
-
-def txt_cell(col, val, bold=False, color='#0F172A'):
-    fw = '700' if bold else '500'
+def txt(col, val, bold=False, color='#0F172A'):
+    fw='700' if bold else '500'
     col.markdown(f"<div style='font-size:13px;font-weight:{fw};color:{color};"
-                 f"padding:5px 0;'>{val}</div>", unsafe_allow_html=True)
+                 f"padding:5px 0;'>{val}</div>",unsafe_allow_html=True)
+
+def nbtn(col, val, key, df_, label, color='#0F172A'):
+    if val==0:
+        col.markdown("<div style='font-size:13px;color:#CBD5E1;padding:5px 0;'>—</div>",
+                     unsafe_allow_html=True)
+    elif col.button(f"{val:,}", key=key):
+        drill(df_, label)
+
+def rag_cell(col, score):
+    col.markdown(f"<div style='font-size:18px;text-align:center;padding:3px 0;'>"
+                 f"{RAG[score]}</div>",unsafe_allow_html=True)
+
+def tot_row(cols_data, widths):
+    """Render a totals row (grey background)."""
+    sep()
+    cs = st.columns(widths)
+    for c,(val,bold,color) in zip(cs,cols_data):
+        txt(c,val,bold,color)
 
 # ── SIDEBAR ────────────────────────────────────────────────────────────────────
 st.sidebar.markdown("## 📊 MSafe CRM")
@@ -213,19 +236,19 @@ st.sidebar.markdown("---")
 uploaded = st.sidebar.file_uploader("Upload CRM export (.xls / .xlsx)", type=['xls','xlsx'])
 
 if not uploaded:
-    _,m,_ = st.columns([1,2,1])
+    _,m,_=st.columns([1,2,1])
     with m:
         st.markdown("<br><br>",unsafe_allow_html=True)
         st.markdown(
             "<div style='text-align:center;padding:48px 24px;background:white;"
             "border-radius:12px;border:1px solid #E2E8F0;'>"
             "<div style='font-size:52px;'>📂</div>"
-            "<div style='font-size:22px;font-weight:800;color:#0F2044 !important;"
-            "margin:14px 0 8px;'>MSafe Inside Sales Dashboard</div>"
+            "<div style='font-size:22px;font-weight:800;color:#0F2044 !important;margin:14px 0 8px;'>"
+            "MSafe Inside Sales Dashboard</div>"
             "<div style='font-size:14px;color:#64748B;'>"
             "Upload your KIT19 CRM export from the sidebar.<br>"
-            "Supports single month or multi-month exports.</div>"
-            "</div>", unsafe_allow_html=True)
+            "Works with single-month or multi-month data.</div>"
+            "</div>",unsafe_allow_html=True)
     st.stop()
 
 df_raw  = load(uploaded.read())
@@ -233,70 +256,47 @@ reps_df = df_raw[~df_raw['is_admin']].copy()
 
 # Sidebar filters
 st.sidebar.markdown("### Filters")
+
+# ── DATE RANGE — fully dynamic from data ──
+if 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any():
+    min_d = reps_df['CreatedOn'].min().date()
+    max_d = reps_df['CreatedOn'].max().date()
+    dr = st.sidebar.date_input(
+        "Date range (Created On)",
+        value=[min_d, max_d],
+        min_value=min_d, max_value=max_d,
+        key='date_range')
+else:
+    dr = None
+
 all_reps = sorted(reps_df['Rep'].dropna().unique().tolist())
 sel_reps = st.sidebar.multiselect("Rep", all_reps, default=all_reps)
-
-# Month filter — only shown if data spans multiple months
-if 'Month' in reps_df.columns:
-    months_avail = sorted(reps_df['Month'].dropna().unique().tolist(),
-                          key=lambda m: pd.to_datetime(m, format='%b %Y'))
-    if len(months_avail) > 1:
-        sel_months = st.sidebar.multiselect("Month", months_avail, default=months_avail)
-    else:
-        sel_months = months_avail
-else:
-    sel_months = []
-
-# Date Range Filter
-if 'CreatedOn' in reps_df.columns:
-    valid_dates = reps_df['CreatedOn'].dropna()
-    min_date = valid_dates.min().date()
-    max_date = valid_dates.max().date()
-
-    date_range = st.sidebar.date_input(
-        "Created Date Range",
-        value=(min_date, max_date),
-        min_value=min_date,
-        max_value=max_date
-    )
-
-all_src = sorted(reps_df['Source'].dropna().unique().tolist())
-sel_src = st.sidebar.multiselect("Source", all_src, default=all_src)
-sel_stage = st.sidebar.multiselect("Stage", ['Open','Won','Lost'], default=['Open','Won','Lost'])
+all_src  = sorted(reps_df['Source'].dropna().unique().tolist())
+sel_src  = st.sidebar.multiselect("Source", all_src, default=all_src)
+sel_stg  = st.sidebar.multiselect("Stage", ['Open','Won','Lost'], default=['Open','Won','Lost'])
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Leads in file:** {len(df_raw):,}")
-if 'Month' in reps_df.columns and len(months_avail)>1:
-    st.sidebar.markdown(f"**Period:** {months_avail[0]} → {months_avail[-1]}")
+if dr and hasattr(dr,'__len__') and len(dr)==2:
+    st.sidebar.markdown(f"**Filtered:** {dr[0].strftime('%d %b %Y')} → {dr[1].strftime('%d %b %Y')}")
 
 # Apply filters
 base = reps_df.copy()
-if sel_reps:   base = base[base['Rep'].isin(sel_reps)]
-if sel_src:    base = base[base['Source'].isin(sel_src)]
-if sel_stage:  base = base[base['Stage'].isin(sel_stage)]
-if sel_months and 'Month' in base.columns:
-    base = base[base['Month'].isin(sel_months)]
-if 'CreatedOn' in base.columns and len(date_range) == 2:
-    start_date, end_date = date_range
+if dr and hasattr(dr,'__len__') and len(dr)==2 and 'CreatedOn' in base.columns:
+    base = base[(base['CreatedOn'].dt.date>=dr[0])&(base['CreatedOn'].dt.date<=dr[1])]
+elif dr and isinstance(dr, date_type) and 'CreatedOn' in base.columns:
+    base = base[base['CreatedOn'].dt.date==dr]
+if sel_reps: base=base[base['Rep'].isin(sel_reps)]
+if sel_src:  base=base[base['Source'].isin(sel_src)]
+if sel_stg:  base=base[base['Stage'].isin(sel_stg)]
 
-    start_date = pd.Timestamp(start_date)
-    end_date = pd.Timestamp(end_date)
+rep_order=(base.groupby('Rep')['Stage']
+           .apply(lambda x:(x=='Won').sum())
+           .sort_values(ascending=False).index.tolist())
 
-    base = base[
-        (base['CreatedOn'] >= start_date) &
-        (base['CreatedOn'] < end_date + pd.Timedelta(days=1))
-    ]
-
-rep_order = (base.groupby('Rep')['Stage']
-             .apply(lambda x:(x=='Won').sum())
-             .sort_values(ascending=False).index.tolist())
-
-# Aggregates
-total  = len(base)
-won    = int((base['Stage']=='Won').sum())
-lost   = int((base['Stage']=='Lost').sum())
-opn    = int((base['Stage']=='Open').sum())
-wr     = round(won/total*100,1) if total else 0
+total=len(base); won=int((base['Stage']=='Won').sum())
+lost=int((base['Stage']=='Lost').sum()); opn=int((base['Stage']=='Open').sum())
+wr=round(won/total*100,1) if total else 0
 
 # ── HEADER ─────────────────────────────────────────────────────────────────────
 st.markdown(
@@ -304,33 +304,29 @@ st.markdown(
     "margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;'>"
     "<span style='color:white !important;font-size:18px;font-weight:700;'>"
     "MSafe Equipments — Inside Sales Dashboard</span>"
-    "<span style='color:#8BAFD4;font-size:12px;'>KIT19 CRM  |  Dynamic date range</span>"
-    "</div>", unsafe_allow_html=True)
+    "<span style='color:#8BAFD4;font-size:12px;'>KIT19 CRM  |  Today: "
+    f"{TODAY.strftime('%d %b %Y')}</span></div>",unsafe_allow_html=True)
 
-# ── KPI CARDS ──────────────────────────────────────────────────────────────────
-kc = st.columns(6)
-def kpi(col,lbl,val,cls=''):
-    col.markdown(f"<div class='kpi'><div class='kpi-l'>{lbl}</div>"
-                 f"<div class='kpi-v {cls}'>{val}</div></div>",unsafe_allow_html=True)
+kc=st.columns(6)
+def kpi(col,l,v,cls=''):
+    col.markdown(f"<div class='kpi'><div class='kpi-l'>{l}</div>"
+                 f"<div class='kpi-v {cls}'>{v}</div></div>",unsafe_allow_html=True)
 kpi(kc[0],'Total Leads',f'{total:,}')
-kpi(kc[1],'Won',f'{won:,}','g')
-kpi(kc[2],'Open',f'{opn:,}','a')
-kpi(kc[3],'Lost',f'{lost:,}','r')
-kpi(kc[4],'Win Rate',f'{wr}%','b')
-kpi(kc[5],'Data as of',TODAY.strftime('%d %b %Y'))
+kpi(kc[1],'Won',f'{won:,}','g'); kpi(kc[2],'Open',f'{opn:,}','a')
+kpi(kc[3],'Lost',f'{lost:,}','r'); kpi(kc[4],'Win Rate',f'{wr}%','b')
+kpi(kc[5],'As of',TODAY.strftime('%d %b %Y'))
 
-# Quick KPI buttons
-bk = st.columns(4)
-pairs = [('All leads',base),('Won leads',base[base['Stage']=='Won']),
-         ('Open leads',base[base['Stage']=='Open']),('Lost leads',base[base['Stage']=='Lost'])]
-for col,(lbl,df_) in zip(bk,pairs):
-    if col.button(f"→ View {lbl} ({len(df_):,})", key=f"kpi_{lbl}"):
-        drill(df_, lbl.capitalize())
+bk=st.columns(4)
+for col,(lbl,df_) in zip(bk,[('All leads',base),('Won leads',base[base['Stage']=='Won']),
+                              ('Open leads',base[base['Stage']=='Open']),
+                              ('Lost leads',base[base['Stage']=='Lost'])]):
+    if col.button(f"→ View {lbl} ({len(df_):,})",key=f"kpi_{lbl}"):
+        drill(df_,lbl.capitalize())
 
 st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:12px 0;'>",
             unsafe_allow_html=True)
 
-# ── DRILL BOX (always at top) ──────────────────────────────────────────────────
+# ── DRILL BOX ──────────────────────────────────────────────────────────────────
 if st.session_state.drill_df is not None:
     show_drill()
     st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:12px 0;'>",
@@ -339,455 +335,424 @@ else:
     st.markdown(
         "<div style='background:#F1F5F9;border:1px dashed #CBD5E1;border-radius:8px;"
         "padding:12px 16px;color:#64748B;font-size:13px;margin-bottom:12px;'>"
-        "👆  Click any number button in the tables below to see those leads here."
-        "</div>", unsafe_allow_html=True)
+        "👆  Click any number button below to see those specific leads here."
+        "</div>",unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TABLE 1 — REP PERFORMANCE  (Won / Open / Lost)
+# TABLE 1 — REP PERFORMANCE  (sorted red → green by Win%)
 # ════════════════════════════════════════════════════════════════════════════════
-st.markdown("<div class='sec'>Table 1 — Rep Performance</div>",unsafe_allow_html=True)
+st.markdown("<div class='sec'>Table 1 — Rep Performance  (🔴 Red = low Win%  →  🟢 Green = high Win%)</div>",
+            unsafe_allow_html=True)
 st.markdown(
     f"<p class='note'>"
-    f"<b title='{WON_S_LABEL}'>Won ℹ</b> = {WON_S_LABEL[:60]}…  &nbsp;|&nbsp;  "
-    f"<b>Open</b> = remaining active stages  &nbsp;|&nbsp;  "
-    f"<b title='{LOST_S_LABEL}'>Lost ℹ</b> = {LOST_S_LABEL[:70]}…"
-    f"<br>Hover the ℹ next to Won and Lost to see full stage list.</p>",
+    f"<b title='{WON_LABEL}'>Won ℹ</b> hover for stage list &nbsp;|&nbsp; "
+    f"<b title='{OPEN_LABEL}'>Open ℹ</b> hover &nbsp;|&nbsp; "
+    f"<b title='{LOST_LABEL}'>Lost ℹ</b> hover &nbsp;|&nbsp; "
+    f"RAG: 🔴 Win% &lt;2%  🟡 2–5%  🟢 &gt;5% — sorted red to green</p>",
     unsafe_allow_html=True)
 
-WIDS1 = [2.2,0.8,0.85,0.85,0.85,0.7,1.0,1.3]
+W1=[0.4,2,0.8,0.85,0.85,0.85,0.7,1.2]
+hdrs(['','Rep','Total','Won','Open','Lost','Win%','View all'],W1)
 
-
-# Column headers with full tooltip via title attribute
-st.markdown(
-    f"<div style='display:flex;gap:4px;margin-bottom:4px;'>"
-    f"<div style='flex:2.2;font-size:11px;font-weight:700;color:#475569;border-bottom:2px solid #0F2044;padding-bottom:3px;'>Rep</div>"
-    f"<div style='flex:0.8;font-size:11px;font-weight:700;color:#475569;border-bottom:2px solid #0F2044;padding-bottom:3px;'>Total</div>"
-    f"<div style='flex:0.85;font-size:11px;font-weight:700;color:#0A6640;border-bottom:2px solid #0F2044;padding-bottom:3px;' title='{WON_S_LABEL}'>Won ℹ</div>"
-    f"<div style='flex:0.85;font-size:11px;font-weight:700;color:#92400E;border-bottom:2px solid #0F2044;padding-bottom:3px;' title='{OPEN_S_LABEL}'>Open ℹ</div>"
-    f"<div style='flex:0.85;font-size:11px;font-weight:700;color:#B91C1C;border-bottom:2px solid #0F2044;padding-bottom:3px;' title='{LOST_S_LABEL}'>Lost ℹ</div>"
-    f"<div style='flex:0.7;font-size:11px;font-weight:700;color:#475569;border-bottom:2px solid #0F2044;padding-bottom:3px;'>Win %</div>"
-    f"<div style='flex:1.3;font-size:11px;font-weight:700;color:#475569;border-bottom:2px solid #0F2044;padding-bottom:3px;'>View all</div>"
-    f"</div>", unsafe_allow_html=True)
-
+# Build sorted list
+rep_rag=[]
 for rep in rep_order:
-    rd  = base[base['Rep']==rep]
-    rw  = rd[rd['Stage']=='Won']
-    ro  = rd[rd['Stage']=='Open']
-    rl  = rd[rd['Stage']=='Lost']
-    wp  = round(len(rw)/len(rd)*100,1) if len(rd) else 0
-    wpc = '#0A6640' if wp>=5 else ('#92400E' if wp>=2 else '#B91C1C')
-    c   = st.columns(WIDS1)
-    txt_cell(c[0], rep, bold=True, color='#0F2044')
-    txt_cell(c[1], f'{len(rd):,}')
-    num_btn(c[2], len(rw), f"t1w_{rep}", rw, f"Won — {rep}", '#0A6640')
-    num_btn(c[3], len(ro), f"t1o_{rep}", ro, f"Open — {rep}", '#92400E')
-    num_btn(c[4], len(rl), f"t1l_{rep}", rl, f"Lost — {rep}", '#B91C1C')
-    txt_cell(c[5], f"{wp}%", bold=True, color=wpc)
-    rating = get_rating(wp)
-    txt_cell(c[6], rating, bold=True)
-    if c[7].button(f"→ All {len(rd):,}", key=f"t1all_{rep}"):
-        drill(rd, f"All leads — {rep}")
+    rd=base[base['Rep']==rep]
+    nw=int((rd['Stage']=='Won').sum()); nt=len(rd)
+    wp=round(nw/nt*100,1) if nt else 0
+    rep_rag.append((rep,rd,nt,nw,wp,rag_win(wp)))
+rep_rag.sort(key=lambda x:x[5])   # red=0 first
 
-tbl_sep()
-# Totals
-tc = st.columns(WIDS1)
-for i,v in enumerate([('TOTAL','',True,'#0F172A'),(f'{total:,}','',True,'#0F172A'),
-                       (f'{won:,}','',True,'#0A6640'),(f'{opn:,}','',True,'#92400E'),
-                       (f'{lost:,}','',True,'#B91C1C'),(f'{wr}%','',True,'#1D4ED8')]):
-    txt_cell(tc[i], v[0], bold=v[2], color=v[3])
+for rep,rd,nt,nw,wp,rs in rep_rag:
+    ro=rd[rd['Stage']=='Open']; rl=rd[rd['Stage']=='Lost']; rw=rd[rd['Stage']=='Won']
+    wpc='#0A6640' if rs==2 else('#92400E' if rs==1 else '#B91C1C')
+    c=st.columns(W1)
+    rag_cell(c[0],rs)
+    txt(c[1],rep,bold=True,color='#0F2044')
+    txt(c[2],f'{nt:,}')
+    nbtn(c[3],len(rw),f"t1w_{rep}",rw,f"Won — {rep}")
+    nbtn(c[4],len(ro),f"t1o_{rep}",ro,f"Open — {rep}")
+    nbtn(c[5],len(rl),f"t1l_{rep}",rl,f"Lost — {rep}")
+    txt(c[6],f"{wp}%",bold=True,color=wpc)
+    if c[7].button(f"→ All {nt:,}",key=f"t1a_{rep}"):
+        drill(rd,f"All leads — {rep}")
+
+sep()
+tc=st.columns(W1); txt(tc[0],''); txt(tc[1],'TOTAL',True)
+txt(tc[2],f'{total:,}',True)
+txt(tc[3],f'{won:,}',True,'#0A6640')
+txt(tc[4],f'{opn:,}',True,'#92400E')
+txt(tc[5],f'{lost:,}',True,'#B91C1C')
+txt(tc[6],f'{wr}%',True,'#1D4ED8')
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TABLE 2 — REP × SOURCE  (wide: Won/Open/Lost per source + totals)
+# TABLE 2 — REP × SOURCE  (wide, Won/Open/Lost per source)
 # ════════════════════════════════════════════════════════════════════════════════
-st.markdown("<div class='sec'>Table 2 — Rep Performance by Source (Won / Open / Lost per Source)</div>",
+st.markdown("<div class='sec'>Table 2 — Rep Performance by Source (Won | Open | Lost per Source)</div>",
             unsafe_allow_html=True)
-st.markdown("<p class='note'>Each source shows three numbers: Won | Open | Lost. "
-            "Row totals on right. Column totals at bottom. Click any number to see those leads.</p>",
+st.markdown("<p class='note'>Each source = 3 columns: Won | Open | Lost. "
+            "Row + column totals. Use the drill selector below the table to click into any cell.</p>",
             unsafe_allow_html=True)
 
-# Build dataframe for display
-src_display = [s for s in MAIN_SRC if base[base['Source_group']==s].shape[0]>0]
-rows2 = []
-for rep in rep_order:
-    rd = base[base['Rep']==rep]
-    row = {'Rep':rep}
-    for src in src_display:
-        sh = SRC_SHORT.get(src, src[:3])
-        sd = rd[rd['Source_group']==src]
-        row[f'{sh}-W'] = int((sd['Stage']=='Won').sum())
-        row[f'{sh}-O'] = int((sd['Stage']=='Open').sum())
-        row[f'{sh}-L'] = int((sd['Stage']=='Lost').sum())
-    row['Tot-W'] = int((rd['Stage']=='Won').sum())
-    row['Tot-O'] = int((rd['Stage']=='Open').sum())
-    row['Tot-L'] = int((rd['Stage']=='Lost').sum())
+src_avail=[s for s in MAIN_SRC if base[base['Source_group']==s].shape[0]>0]
+rows2=[]
+for rep,rd,nt,nw,wp,rs in rep_rag:
+    row={'RAG':RAG[rs],'Rep':rep}
+    for src in src_avail:
+        sh=SRC_SHORT.get(src,src[:3]); sd=rd[rd['Source_group']==src]
+        row[f'{sh}-W']=int((sd['Stage']=='Won').sum())
+        row[f'{sh}-O']=int((sd['Stage']=='Open').sum())
+        row[f'{sh}-L']=int((sd['Stage']=='Lost').sum())
+    row['Tot-W']=nw; row['Tot-O']=int((rd['Stage']=='Open').sum())
+    row['Tot-L']=int((rd['Stage']=='Lost').sum())
     rows2.append(row)
-# Total row
-tot2 = {'Rep':'TOTAL'}
-for src in src_display:
-    sh = SRC_SHORT.get(src, src[:3])
-    sd = base[base['Source_group']==src]
-    tot2[f'{sh}-W'] = int((sd['Stage']=='Won').sum())
-    tot2[f'{sh}-O'] = int((sd['Stage']=='Open').sum())
-    tot2[f'{sh}-L'] = int((sd['Stage']=='Lost').sum())
+tot2={'RAG':'','Rep':'TOTAL'}
+for src in src_avail:
+    sh=SRC_SHORT.get(src,src[:3]); sd=base[base['Source_group']==src]
+    tot2[f'{sh}-W']=int((sd['Stage']=='Won').sum())
+    tot2[f'{sh}-O']=int((sd['Stage']=='Open').sum())
+    tot2[f'{sh}-L']=int((sd['Stage']=='Lost').sum())
 tot2['Tot-W']=won; tot2['Tot-O']=opn; tot2['Tot-L']=lost
 rows2.append(tot2)
-
-df2 = pd.DataFrame(rows2).set_index('Rep')
+df2=pd.DataFrame(rows2).set_index('Rep')
 
 def sty_t2(df):
-    s = pd.DataFrame('', index=df.index, columns=df.columns)
+    s=pd.DataFrame('',index=df.index,columns=df.columns)
     for col in df.columns:
         if col.endswith('-W'):
-            s[col] = df[col].apply(
-                lambda v:'background:#E9F7EF;color:#0A6640;font-weight:700'
-                if isinstance(v,(int,float)) and v>0 else 'color:#CBD5E1')
+            s[col]=df[col].apply(lambda v:'background:#E9F7EF;color:#0A6640;font-weight:700'
+                                  if isinstance(v,(int,float)) and v>0 else 'color:#CBD5E1')
         elif col.endswith('-L'):
-            s[col] = df[col].apply(
-                lambda v:'background:#FEF2F2;color:#B91C1C'
-                if isinstance(v,(int,float)) and v>0 else 'color:#CBD5E1')
+            s[col]=df[col].apply(lambda v:'background:#FEF2F2;color:#B91C1C'
+                                  if isinstance(v,(int,float)) and v>0 else 'color:#CBD5E1')
         elif col.endswith('-O'):
-            s[col] = df[col].apply(
-                lambda v:'background:#FFFBEB;color:#92400E'
-                if isinstance(v,(int,float)) and v>0 else 'color:#CBD5E1')
+            s[col]=df[col].apply(lambda v:'background:#FFFBEB;color:#92400E'
+                                  if isinstance(v,(int,float)) and v>0 else 'color:#CBD5E1')
         elif 'Tot' in col:
-            s[col] = 'background:#EAF0FB;color:#0F2044;font-weight:700'
+            s[col]='background:#EAF0FB;color:#0F2044;font-weight:700'
     if 'TOTAL' in df.index:
-        try:
-            s = s.apply(lambda col: col.map(
-                lambda v: 'background:#E8EDF5;color:#0F172A;font-weight:800'), axis=0)
-            s.loc['TOTAL'] = 'background:#0F2044;color:white;font-weight:800'
-        except: pass
+        s.loc['TOTAL']='background:#0F2044;color:white;font-weight:800'
     return s
 
 st.dataframe(
-    df2.style.set_properties(**BASE).apply(sty_t2, axis=None)
-       .format(lambda x: '—' if isinstance(x,(int,float)) and x==0 else
-               (f'{x:,}' if isinstance(x,(int,float)) else x)),
-    use_container_width=True, height=450)
+    df2.style.set_properties(**BASE).apply(sty_t2,axis=None)
+       .format(lambda x:'—' if isinstance(x,(int,float)) and x==0
+               else(f'{x:,}' if isinstance(x,(int,float)) else x)),
+    use_container_width=True, height=460)
 
-# Drill-through for Table 2
-st.markdown("<p class='note'>Select rep + source + stage below to drill into any cell:</p>",
-            unsafe_allow_html=True)
-d1,d2,d3,d4 = st.columns([2,2,2,1.2])
-d_rep = d1.selectbox("Rep",   ['All']+rep_order,   key='t2_rep')
-d_src = d2.selectbox("Source",['All']+src_display, key='t2_src')
-d_stg = d3.selectbox("Stage", ['All','Won','Open','Lost'], key='t2_stg')
-if d4.button("→ View leads", key='t2_drill'):
-    fd = base.copy()
+d1,d2,d3,d4=st.columns([2,2,2,1.2])
+d_rep=d1.selectbox("Rep",['All']+[r for r,*_ in rep_rag],key='t2_rep')
+d_src=d2.selectbox("Source",['All']+src_avail,key='t2_src')
+d_stg=d3.selectbox("Stage",['All','Won','Open','Lost'],key='t2_stg')
+if d4.button("→ View leads",key='t2_drill'):
+    fd=base.copy()
     if d_rep!='All': fd=fd[fd['Rep']==d_rep]
     if d_src!='All': fd=fd[fd['Source_group']==d_src]
     if d_stg!='All': fd=fd[fd['Stage']==d_stg]
-    drill(fd, f"{d_stg} leads — {d_rep} | {d_src}")
+    drill(fd,f"{d_stg} — {d_rep} | {d_src}")
 
-st.download_button("⬇ Download Table 2 (CSV)", df2.to_csv(), "rep_source.csv","text/csv",key="dl_t2")
+st.download_button("⬇ Download Table 2",df2.to_csv(),"rep_source.csv","text/csv",key="dl2")
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TABLE 3 — SOURCE PERFORMANCE
+# TABLE 3 — SOURCE PERFORMANCE  (sorted red → green)
 # ════════════════════════════════════════════════════════════════════════════════
-st.markdown("<div class='sec'>Table 3 — Source Performance</div>",unsafe_allow_html=True)
-st.markdown("<p class='note'>Sorted by Win % descending. Click any number to see those leads.</p>",
+st.markdown("<div class='sec'>Table 3 — Source Performance  (🔴 low Win%  →  🟢 high Win%)</div>",
             unsafe_allow_html=True)
-WIDS3 = [2,0.8,0.8,0.8,0.8,0.7,1.0,1.3]
-tbl_header(['Source','Total','Won','Open','Lost','Win %','Rating','View all'], WIDS3)
+st.markdown("<p class='note'>RAG: 🔴 &lt;2%  🟡 2–10%  🟢 &gt;10%. Sorted red to green.</p>",
+            unsafe_allow_html=True)
+
+W3=[0.4,2,0.8,0.85,0.85,0.85,0.7,1.2]
+hdrs(['','Source','Total','Won','Open','Lost','Win%','View all'],W3)
 
 src_stats=[]
-for src in src_display:
+for src in src_avail:
     sd=base[base['Source_group']==src]
     nw=int((sd['Stage']=='Won').sum()); nt=len(sd)
-    src_stats.append((src,sd,nw,nt))
-src_stats.sort(key=lambda x:x[2]/x[3] if x[3] else 0, reverse=True)
-
-for src,sd,nw,nt in src_stats:
-    so=sd[sd['Stage']=='Open']; sl=sd[sd['Stage']=='Lost']
-    sw=sd[sd['Stage']=='Won']
     wp=round(nw/nt*100,1) if nt else 0
-    wpc='#0A6640' if wp>=10 else ('#92400E' if wp>=3 else '#B91C1C')
-    c=st.columns(WIDS3)
-    txt_cell(c[0], src, bold=True, color='#0F2044')
-    txt_cell(c[1], f'{nt:,}')
-    num_btn(c[2], len(sw), f"t3w_{src}", sw, f"Won — {src}")
-    num_btn(c[3], len(so), f"t3o_{src}", so, f"Open — {src}")
-    num_btn(c[4], len(sl), f"t3l_{src}", sl, f"Lost — {src}")
-    txt_cell(c[5], f"{wp}%", bold=True, color=wpc)
-    rating = get_rating(wp)
-    txt_cell(c[6], rating, bold=True)
-    if c[7].button(f"→ All {nt:,}", key=f"t3a_{src}"):
-        drill(sd, f"All leads — {src}")
+    src_stats.append((src,sd,nt,nw,wp,rag_src(wp)))
+src_stats.sort(key=lambda x:x[5])
 
-tbl_sep()
-tc3=st.columns(WIDS3)
-txt_cell(tc3[0],'TOTAL',bold=True)
-txt_cell(tc3[1],f'{total:,}',bold=True)
-txt_cell(tc3[2],f'{won:,}',bold=True,color='#0A6640')
-txt_cell(tc3[3],f'{opn:,}',bold=True,color='#92400E')
-txt_cell(tc3[4],f'{lost:,}',bold=True,color='#B91C1C')
-txt_cell(tc3[5],f'{wr}%',bold=True,color='#1D4ED8')
-txt_cell(tc3[6], get_rating(wr), bold=True)
+for src,sd,nt,nw,wp,rs in src_stats:
+    so=sd[sd['Stage']=='Open']; sl=sd[sd['Stage']=='Lost']; sw=sd[sd['Stage']=='Won']
+    wpc='#0A6640' if rs==2 else('#92400E' if rs==1 else '#B91C1C')
+    c=st.columns(W3)
+    rag_cell(c[0],rs); txt(c[1],src,bold=True,color='#0F2044')
+    txt(c[2],f'{nt:,}')
+    nbtn(c[3],len(sw),f"t3w_{src}",sw,f"Won — {src}")
+    nbtn(c[4],len(so),f"t3o_{src}",so,f"Open — {src}")
+    nbtn(c[5],len(sl),f"t3l_{src}",sl,f"Lost — {src}")
+    txt(c[6],f"{wp}%",bold=True,color=wpc)
+    if c[7].button(f"→ All {nt:,}",key=f"t3a_{src}"):
+        drill(sd,f"All leads — {src}")
+
+sep()
+tc3=st.columns(W3); txt(tc3[0],''); txt(tc3[1],'TOTAL',True)
+txt(tc3[2],f'{total:,}',True)
+txt(tc3[3],f'{won:,}',True,'#0A6640')
+txt(tc3[4],f'{opn:,}',True,'#92400E')
+txt(tc3[5],f'{lost:,}',True,'#B91C1C')
+txt(tc3[6],f'{wr}%',True,'#1D4ED8')
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TABLE 4 — AMOUNT (AmountPaid)
+# TABLE 4 — AMOUNT PAID
 # ════════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='sec'>Table 4 — Amount Paid (₹)</div>",unsafe_allow_html=True)
-st.markdown("<p class='note'>"
-            "Based on AmountPaid field from KIT19. Only leads where amount > 0 are counted. "
-            "Click count to see those leads.</p>", unsafe_allow_html=True)
+st.markdown("<p class='note'>Based on AmountPaid field. Only leads with amount &gt; 0 shown.</p>",
+            unsafe_allow_html=True)
 
-WIDS4=[2.2,0.9,1.3,1.5,1.3,1.3]
-tbl_header(['Rep','Leads with ₹','Total Amount ₹','Avg Amount ₹','Max Amount ₹','View'],WIDS4)
-
-amt_rows=[]
 if 'AmountPaid' in base.columns:
-    for rep in rep_order:
-        rd=base[base['Rep']==rep]
+    W4=[2.2,0.9,1.4,1.5,1.3,1.3]
+    hdrs(['Rep','With Amount','Total ₹','Avg ₹','Max ₹','View'],W4)
+    for rep,rd,nt,nw,wp,rs in rep_rag:
         paid=rd[rd['AmountPaid']>0]
-        if len(paid)==0 and len(rd)==0: continue
         ta=paid['AmountPaid'].sum(); av=paid['AmountPaid'].mean() if len(paid) else 0
         mx=paid['AmountPaid'].max() if len(paid) else 0
-        amt_rows.append((rep,rd,paid,len(paid),ta,av,mx))
-        c=st.columns(WIDS4)
-        txt_cell(c[0],rep,bold=True,color='#0F2044')
-        num_btn(c[1],len(paid),f"t4n_{rep}",paid,f"Paid leads — {rep}")
-        txt_cell(c[2],f'₹{ta:,.0f}' if ta>0 else '—',bold=ta>0,color='#0A6640' if ta>0 else '#CBD5E1')
-        txt_cell(c[3],f'₹{av:,.0f}' if av>0 else '—')
-        txt_cell(c[4],f'₹{mx:,.0f}' if mx>0 else '—')
-        if c[5].button(f"→ View",key=f"t4v_{rep}",help=f"All leads with amount — {rep}"):
-            drill(rd,f"All leads (amount) — {rep}")
-
-    tbl_sep()
-    all_paid=base[base['AmountPaid']>0]
-    tc4=st.columns(WIDS4)
-    txt_cell(tc4[0],'TOTAL',bold=True)
-    num_btn(tc4[1],len(all_paid),'t4_tot',all_paid,"All leads with amount paid")
-    txt_cell(tc4[2],f'₹{all_paid["AmountPaid"].sum():,.0f}',bold=True,color='#0A6640')
-    txt_cell(tc4[3],f'₹{all_paid["AmountPaid"].mean():,.0f}' if len(all_paid) else '—')
-    txt_cell(tc4[4],f'₹{all_paid["AmountPaid"].max():,.0f}' if len(all_paid) else '—')
+        c=st.columns(W4)
+        txt(c[0],rep,True,'#0F2044')
+        nbtn(c[1],len(paid),f"t4n_{rep}",paid,f"Leads with amount — {rep}")
+        txt(c[2],f'₹{ta:,.0f}' if ta>0 else '—',bold=ta>0,color='#0A6640' if ta>0 else '#CBD5E1')
+        txt(c[3],f'₹{av:,.0f}' if av>0 else '—')
+        txt(c[4],f'₹{mx:,.0f}' if mx>0 else '—')
+        if c[5].button("→ View",key=f"t4v_{rep}"):
+            drill(rd,f"All leads — {rep}")
+    sep()
+    ap=base[base['AmountPaid']>0]; tc4=st.columns(W4)
+    txt(tc4[0],'TOTAL',True)
+    nbtn(tc4[1],len(ap),'t4_tot',ap,"All leads with amount paid")
+    txt(tc4[2],f'₹{ap["AmountPaid"].sum():,.0f}',True,'#0A6640')
+    txt(tc4[3],f'₹{ap["AmountPaid"].mean():,.0f}' if len(ap) else '—')
+    txt(tc4[4],f'₹{ap["AmountPaid"].max():,.0f}' if len(ap) else '—')
 else:
     st.info("AmountPaid column not found in this export.")
 
 # ════════════════════════════════════════════════════════════════════════════════
-# TABLE 5 — STALE LEADS  (active lead aging buckets)
+# TABLE 5 — STALE OPEN LEADS  (sorted red → green by % stale)
 # ════════════════════════════════════════════════════════════════════════════════
-# ════════════════════════════════════════════════════════════════════════════════
-# TABLE 6 — CRM HYGIENE (daily report)
-# ════════════════════════════════════════════════════════════════════════════════
+st.markdown("<div class='sec'>Table 5 — Stale Open Leads  (🔴 many stale  →  🟢 fresh pipeline)</div>",
+            unsafe_allow_html=True)
+st.markdown("<p class='note'>Open leads bucketed by age since created date. "
+            "RAG: 🔴 &gt;40% in 30+ days  🟡 20–40%  🟢 &lt;20%. Sorted red to green.</p>",
+            unsafe_allow_html=True)
 
-st.markdown(
-    "<div class='sec'>Table 6 — CRM Hygiene Report (share with team daily)</div>",
-    unsafe_allow_html=True
-)
+if 'age_days' in base.columns:
+    def abkt(d):
+        if pd.isna(d) or d<0: return '0–7d'
+        if d<=7: return '0–7d'
+        if d<=15: return '8–15d'
+        if d<=30: return '16–30d'
+        return '30+d'
+    BKTS=['0–7d','8–15d','16–30d','30+d']
+    BKT_C={'0–7d':'#0A6640','8–15d':'#92400E','16–30d':'#B45309','30+d':'#B91C1C'}
+    ob=base[base['Stage']=='Open'].copy(); ob['bkt']=ob['age_days'].apply(abkt)
+    W5=[0.4,2,0.9,0.9,1,1,0.9,1.2]
+    hdrs(['','Rep','Open','0–7 days','8–15 days','16–30 days','30+ days','View all'],W5)
 
-st.markdown(
-    "<p class='note'>"
-    "Numbers only. Each number clickable — shows the exact leads causing the issue. "
-    "All metrics are for OPEN leads unless noted."
-    "</p>",
-    unsafe_allow_html=True
-)
+    st5=[]
+    for rep,rd,nt,nw,wp,_ in rep_rag:
+        rdo=ob[ob['Rep']==rep]; no=len(rdo)
+        if no==0: continue
+        old=int((rdo['bkt']=='30+d').sum())
+        pct_old=round(old/no*100,1) if no else 0
+        st5.append((rep,rdo,no,pct_old,rag_stale(pct_old)))
+    st5.sort(key=lambda x:x[4])
 
-WIDS6=[2,0.9,1.1,1.2,1.1,1.1,1.1,1.1,1.0,1.0]
+    for rep,rdo,no,pct_old,rs in st5:
+        c=st.columns(W5); rag_cell(c[0],rs)
+        txt(c[1],rep,True,'#0F2044'); txt(c[2],f'{no:,}')
+        for i,bkt in enumerate(BKTS,3):
+            bd=rdo[rdo['bkt']==bkt]
+            nbtn(c[i],len(bd),f"t5_{rep}_{bkt}",bd,f"{bkt} open — {rep}",BKT_C[bkt])
+        if c[7].button(f"→ All {no}",key=f"t5a_{rep}"):
+            drill(rdo,f"All open leads — {rep}")
 
-tbl_header([
-    'Rep',
-    'Total Open',
-    'No Followup\nDate',
-    'Overdue\nFollowup',
-    'No City\nFilled',
-    'No Category\nFilled',
-    'RNR Stuck\n7+ Days',
-    '30+ Day\nOpen Leads',
-    'CRM Score',
-    'Rating'
-], WIDS6)
-
-open_all = base[base['Stage']=='Open'].copy()
-
-for rep in rep_order:
-
-    rd = open_all[open_all['Rep']==rep]
-
-    if len(rd)==0:
-        continue
-
-    # No Followup Date
-    no_fu = rd[
-        rd.get(
-            'FollowupDate_dt',
-            pd.Series(dtype='datetime64[ns]', index=rd.index)
-        ).isna()
-    ] if 'FollowupDate_dt' in rd.columns else pd.DataFrame()
-
-    # Overdue Followup
-    if 'FollowupDate_dt' in rd.columns:
-        overdue = rd[
-            rd['FollowupDate_dt'].notna() &
-            (rd['FollowupDate_dt'] < TODAY)
-        ]
-    else:
-        overdue = pd.DataFrame()
-
-    # No City
-    no_city = rd[
-        rd['City'].isna() |
-        rd['City'].astype(str).str.strip().isin(['','0','nan'])
-    ] if 'City' in rd.columns else pd.DataFrame()
-
-    # No Category
-    no_cat = rd[
-        rd['Category'].isna() |
-        rd['Category'].astype(str).str.strip().isin(['','0','nan'])
-    ] if 'Category' in rd.columns else pd.DataFrame()
-
-    # RNR Stuck
-    rnr_stuck = rd[
-        rd['FollowupStatus'].isin(RNR_S) &
-        (rd.get('age_days',0) >= 7)
-    ] if 'age_days' in rd.columns else pd.DataFrame()
-
-    # 30+ Days Open
-    old30 = rd[
-        rd.get('age_days', pd.Series(0,index=rd.index)) >= 30
-    ] if 'age_days' in rd.columns else pd.DataFrame()
-
-    # CRM SCORE
-    score = 100
-
-    score -= len(overdue) * 3
-    score -= len(no_fu) * 2
-    score -= len(no_city)
-    score -= len(no_cat)
-    score -= len(rnr_stuck)
-
-    score = max(score, 0)
-
-    if score >= 80:
-        rating = "🟢 Green"
-        score_color = "#0A6640"
-    elif score >= 60:
-        rating = "🟡 Yellow"
-        score_color = "#92400E"
-    else:
-        rating = "🔴 Red"
-        score_color = "#B91C1C"
-
-    c = st.columns(WIDS6)
-
-    txt_cell(c[0], rep, bold=True, color='#0F2044')
-    txt_cell(c[1], f'{len(rd):,}')
-
-    num_btn(c[2], len(no_fu),
-            f"h_nofu_{rep}",
-            no_fu,
-            f"No followup date — {rep}")
-
-    num_btn(c[3], len(overdue),
-            f"h_over_{rep}",
-            overdue,
-            f"Overdue followup — {rep}")
-
-    num_btn(c[4], len(no_city),
-            f"h_ncity_{rep}",
-            no_city,
-            f"No city — {rep}")
-
-    num_btn(c[5], len(no_cat),
-            f"h_ncat_{rep}",
-            no_cat,
-            f"No category — {rep}")
-
-    num_btn(c[6], len(rnr_stuck),
-            f"h_rnr_{rep}",
-            rnr_stuck,
-            f"RNR stuck 7+ days — {rep}")
-
-    num_btn(c[7], len(old30),
-            f"h_old30_{rep}",
-            old30,
-            f"30+ day open — {rep}")
-
-    txt_cell(c[8], str(score), bold=True, color=score_color)
-    txt_cell(c[9], rating, bold=True, color=score_color)
-
-tbl_sep()
-
-tc6 = st.columns(WIDS6)
-
-txt_cell(tc6[0], 'TOTAL', bold=True)
-txt_cell(tc6[1], f'{len(open_all):,}', bold=True)
-
-total_no_fu = (
-    int(open_all['FollowupDate_dt'].isna().sum())
-    if 'FollowupDate_dt' in open_all.columns else 0
-)
-
-total_overdue = (
-    int(len(open_all[
-        open_all['FollowupDate_dt'] < TODAY
-    ]))
-    if 'FollowupDate_dt' in open_all.columns else 0
-)
-
-total_city = (
-    int(open_all['City'].isna().sum())
-    if 'City' in open_all.columns else 0
-)
-
-total_cat = (
-    int(open_all['Category'].isna().sum())
-    if 'Category' in open_all.columns else 0
-)
-
-total_rnr = (
-    int(len(open_all[
-        open_all['FollowupStatus'].isin(RNR_S) &
-        (open_all['age_days'] >= 7)
-    ]))
-    if 'age_days' in open_all.columns else 0
-)
-
-total_old30 = (
-    int(len(open_all[
-        open_all['age_days'] >= 30
-    ]))
-    if 'age_days' in open_all.columns else 0
-)
-
-totals = [
-    total_no_fu,
-    total_overdue,
-    total_city,
-    total_cat,
-    total_rnr,
-    total_old30
-]
-
-for i,v in enumerate(totals, start=2):
-    txt_cell(
-        tc6[i],
-        f'{v:,}',
-        bold=True,
-        color='#B91C1C' if v > 0 else '#0F172A'
-    )
-
-# Overall CRM Score
-overall_score = 100
-
-overall_score -= total_overdue * 3
-overall_score -= total_no_fu * 2
-overall_score -= total_city
-overall_score -= total_cat
-overall_score -= total_rnr
-
-overall_score = max(overall_score, 0)
-
-if overall_score >= 80:
-    overall_rating = "🟢 Green"
-    score_color = "#0A6640"
-elif overall_score >= 60:
-    overall_rating = "🟡 Yellow"
-    score_color = "#92400E"
+    sep()
+    tc5=st.columns(W5); txt(tc5[0],''); txt(tc5[1],'TOTAL',True)
+    txt(tc5[2],f'{len(ob):,}',True)
+    for i,bkt in enumerate(BKTS,3):
+        bd=ob[ob['bkt']==bkt]
+        txt(tc5[i],f'{len(bd):,}',True,BKT_C[bkt])
 else:
-    overall_rating = "🔴 Red"
-    score_color = "#B91C1C"
+    st.warning("CreatedOn date not available — cannot calculate aging.")
 
-txt_cell(tc6[8], str(overall_score), bold=True, color=score_color)
-txt_cell(tc6[9], overall_rating, bold=True, color=score_color)
+# ════════════════════════════════════════════════════════════════════════════════
+# TABLE 6 — CRM HYGIENE  (sorted red → green)
+# ════════════════════════════════════════════════════════════════════════════════
+st.markdown("<div class='sec'>Table 6 — CRM Hygiene  (daily report — share with team)</div>",
+            unsafe_allow_html=True)
+st.markdown("<p class='note'>"
+            "Open leads only. RAG based on total issues as % of open leads. "
+            "🔴 &gt;50% issues  🟡 25–50%  🟢 &lt;25%. Sorted red to green. Click any number.</p>",
+            unsafe_allow_html=True)
+
+W6=[0.4,2,0.9,1.1,1.2,1,1.1,1.1,1.1]
+hdrs(['','Rep','Open','No Followup\nDate','Overdue\nFollowup',
+      'No City','No Category','RNR Stuck\n7+ Days','30+ Day\nOpen'],W6)
+
+oa=base[base['Stage']=='Open'].copy()
+hyg_rows=[]
+for rep,rd,nt,nw,wp,_ in rep_rag:
+    rdo=oa[oa['Rep']==rep]; no=len(rdo)
+    if no==0: continue
+    no_fu  = rdo[rdo['FollowupDate_dt'].isna()] if 'FollowupDate_dt' in rdo.columns else pd.DataFrame()
+    overdue= rdo[rdo['FollowupDate_dt'].notna()&(rdo['FollowupDate_dt']<TODAY)] \
+             if 'FollowupDate_dt' in rdo.columns else pd.DataFrame()
+    no_city= rdo[rdo['City'].isna()|rdo['City'].astype(str).str.strip().isin(['','0','nan'])] \
+             if 'City' in rdo.columns else pd.DataFrame()
+    no_cat = rdo[rdo['Category'].isna()|rdo['Category'].astype(str).str.strip().isin(['','0','nan'])] \
+             if 'Category' in rdo.columns else pd.DataFrame()
+    rnr_st = rdo[rdo['FollowupStatus'].isin(RNR_S)&(rdo.get('last_followup_age',0)>=7)] \
+             if 'last_followup_age' in rdo.columns else rdo[rdo['FollowupStatus'].isin(RNR_S)]
+    old30  = rdo[rdo['age_days']>=30] if 'age_days' in rdo.columns else pd.DataFrame()
+    tot_issues=max(len(no_fu),len(overdue))+len(no_city)+len(no_cat)+len(rnr_st)+len(old30)
+    iss_pct=round(tot_issues/no*100,1) if no else 0
+    hyg_rows.append((rep,rdo,no,no_fu,overdue,no_city,no_cat,rnr_st,old30,rag_hygiene(iss_pct)))
+
+hyg_rows.sort(key=lambda x:x[9])
+for rep,rdo,no,no_fu,overdue,no_city,no_cat,rnr_st,old30,rs in hyg_rows:
+    c=st.columns(W6); rag_cell(c[0],rs)
+    txt(c[1],rep,True,'#0F2044'); txt(c[2],f'{no:,}')
+    nbtn(c[3],len(no_fu),   f"h_fu_{rep}",  no_fu,   f"No followup date — {rep}")
+    nbtn(c[4],len(overdue), f"h_ov_{rep}",  overdue, f"Overdue followup — {rep}")
+    nbtn(c[5],len(no_city), f"h_cy_{rep}",  no_city, f"No city — {rep}")
+    nbtn(c[6],len(no_cat),  f"h_ct_{rep}",  no_cat,  f"No category — {rep}")
+    nbtn(c[7],len(rnr_st),  f"h_rn_{rep}",  rnr_st,  f"RNR stuck 7+ days — {rep}")
+    nbtn(c[8],len(old30),   f"h_o30_{rep}", old30,   f"30+ day open — {rep}")
+
+sep()
+tc6=st.columns(W6); txt(tc6[0],''); txt(tc6[1],'TOTAL',True); txt(tc6[2],f'{len(oa):,}',True)
+cols6_totals=[
+    int(oa['FollowupDate_dt'].isna().sum()) if 'FollowupDate_dt' in oa.columns else 0,
+    int(len(oa[oa['FollowupDate_dt']<TODAY])) if 'FollowupDate_dt' in oa.columns else 0,
+    int(oa['City'].isna().sum()) if 'City' in oa.columns else 0,
+    int(oa['Category'].isna().sum()) if 'Category' in oa.columns else 0,
+    int(len(oa[oa['FollowupStatus'].isin(RNR_S)&(oa.get('last_followup_age',pd.Series(0,index=oa.index))>=7)])) if 'last_followup_age' in oa.columns else 0,
+    int(len(oa[oa.get('age_days',pd.Series(0,index=oa.index))>=30])) if 'age_days' in oa.columns else 0,
+]
+for i,v in enumerate(cols6_totals,3):
+    txt(tc6[i],f'{v:,}',True,'#B91C1C' if v>0 else '#0F172A')
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TABLE 7 — QUOTED PIPELINE  (New to Quoted analysis)
+# ════════════════════════════════════════════════════════════════════════════════
+st.markdown("<div class='sec'>Table 7 — Quoted Pipeline Analysis  (🔴 low conversion  →  🟢 high conversion)</div>",
+            unsafe_allow_html=True)
+st.markdown("<p class='note'>"
+            "All leads that reached a quoted stage. Shows still in quoted, won from quote, "
+            "lost from quote, and quote→win conversion %. "
+            "RAG: 🔴 &lt;15% quote→win  🟡 15–30%  🟢 &gt;30%. Sorted red to green.</p>",
+            unsafe_allow_html=True)
+
+ALL_QUOTED_S = QUOTED_S + WON_S + LOST_FROM_Q
+W7=[0.4,2,1,1.1,1,1,1.1,1.2]
+hdrs(['','Rep','Reached\nQuoted','In Quoted\n(Pending)','Won from\nQuote','Lost from\nQuote',
+      'Quote→Win%','View all quoted'],W7)
+
+qt7=[]
+for rep,rd,nt,nw,wp,_ in rep_rag:
+    q_all= rd[rd['FollowupStatus'].isin(ALL_QUOTED_S)]
+    q_cur= rd[rd['FollowupStatus'].isin(QUOTED_S)]
+    q_won= rd[rd['FollowupStatus'].isin(WON_S)]
+    q_lst= rd[rd['FollowupStatus'].isin(LOST_FROM_Q)]
+    nqa=len(q_all); nqw=len(q_won); nql=len(q_lst)
+    qconv=round(nqw/(nqw+nql)*100,1) if (nqw+nql)>0 else 0
+    rs=rag_quote_conv(qconv) if nqa>0 else 1
+    qt7.append((rep,rd,q_all,q_cur,q_won,q_lst,nqa,nqw,nql,qconv,rs))
+
+qt7.sort(key=lambda x:x[10])
+for rep,rd,q_all,q_cur,q_won,q_lst,nqa,nqw,nql,qconv,rs in qt7:
+    if nqa==0: continue
+    wpc='#0A6640' if rs==2 else('#92400E' if rs==1 else '#B91C1C')
+    c=st.columns(W7); rag_cell(c[0],rs)
+    txt(c[1],rep,True,'#0F2044')
+    nbtn(c[2],nqa,       f"t7a_{rep}", q_all, f"All quoted leads — {rep}")
+    nbtn(c[3],len(q_cur),f"t7c_{rep}", q_cur, f"Currently in quoted — {rep}")
+    nbtn(c[4],nqw,       f"t7w_{rep}", q_won, f"Won from quote — {rep}")
+    nbtn(c[5],nql,       f"t7l_{rep}", q_lst, f"Lost from quote — {rep}")
+    txt(c[6],f"{qconv}%",True,wpc)
+    if c[7].button(f"→ All {nqa}",key=f"t7all_{rep}"):
+        drill(q_all,f"All quoted pipeline — {rep}")
+
+sep()
+qa_tot=base[base['FollowupStatus'].isin(ALL_QUOTED_S)]
+qc_tot=base[base['FollowupStatus'].isin(QUOTED_S)]
+qw_tot=base[base['FollowupStatus'].isin(WON_S)]
+ql_tot=base[base['FollowupStatus'].isin(LOST_FROM_Q)]
+qconv_tot=round(len(qw_tot)/(len(qw_tot)+len(ql_tot))*100,1) if (len(qw_tot)+len(ql_tot))>0 else 0
+tc7=st.columns(W7); txt(tc7[0],''); txt(tc7[1],'TOTAL',True)
+txt(tc7[2],f'{len(qa_tot):,}',True)
+txt(tc7[3],f'{len(qc_tot):,}',True,'#92400E')
+txt(tc7[4],f'{len(qw_tot):,}',True,'#0A6640')
+txt(tc7[5],f'{len(ql_tot):,}',True,'#B91C1C')
+txt(tc7[6],f'{qconv_tot}%',True,'#1D4ED8')
+
+# ════════════════════════════════════════════════════════════════════════════════
+# TABLE 8 — QUOTED STAGE AGING  (age = TODAY - LastFollowupedOn)
+# ════════════════════════════════════════════════════════════════════════════════
+st.markdown("<div class='sec'>Table 8 — Quoted Stage Aging  (how long leads have been in quoted stage)</div>",
+            unsafe_allow_html=True)
+st.markdown("<p class='note'>"
+            "Only leads currently sitting in a quoted stage. "
+            "Age = days since last status update (LastFollowupedOn). "
+            "RAG: 🔴 &gt;30% stuck 30+ days  🟡 15–30%  🟢 &lt;15%. Sorted red to green.</p>",
+            unsafe_allow_html=True)
+
+qcur_all=base[base['FollowupStatus'].isin(QUOTED_S)].copy()
+
+if 'last_followup_age' in qcur_all.columns:
+    def qbkt(d):
+        if pd.isna(d) or d<0: return '0–7d'
+        if d<=7:  return '0–7d'
+        if d<=15: return '8–15d'
+        if d<=30: return '16–30d'
+        return '30+d'
+    QBKTS=['0–7d','8–15d','16–30d','30+d']
+    QBKT_C={'0–7d':'#0A6640','8–15d':'#92400E','16–30d':'#B45309','30+d':'#B91C1C'}
+    qcur_all['qbkt']=qcur_all['last_followup_age'].apply(qbkt)
+
+    W8=[0.4,2,0.9,1,1,1,1,1.2]
+    hdrs(['','Rep','In Quoted','0–7 days','8–15 days','16–30 days','30+ days','View all'],W8)
+
+    qt8=[]
+    for rep,rd,nt,nw,wp,_ in rep_rag:
+        rq=qcur_all[qcur_all['Rep']==rep]; nq=len(rq)
+        if nq==0: continue
+        old=int((rq['qbkt']=='30+d').sum())
+        pct_old=round(old/nq*100,1) if nq else 0
+        qt8.append((rep,rq,nq,pct_old,rag_quoted_age(pct_old)))
+    qt8.sort(key=lambda x:x[4])
+
+    for rep,rq,nq,pct_old,rs in qt8:
+        c=st.columns(W8); rag_cell(c[0],rs)
+        txt(c[1],rep,True,'#0F2044'); txt(c[2],f'{nq:,}')
+        for i,bkt in enumerate(QBKTS,3):
+            bd=rq[rq['qbkt']==bkt]
+            nbtn(c[i],len(bd),f"t8_{rep}_{bkt}",bd,f"Quoted {bkt} — {rep}",QBKT_C[bkt])
+        if c[7].button(f"→ All {nq}",key=f"t8a_{rep}"):
+            drill(rq,f"All quoted (pending) — {rep}")
+
+    sep()
+    tc8=st.columns(W8); txt(tc8[0],''); txt(tc8[1],'TOTAL',True)
+    txt(tc8[2],f'{len(qcur_all):,}',True)
+    for i,bkt in enumerate(QBKTS,3):
+        bd=qcur_all[qcur_all['qbkt']==bkt]
+        txt(tc8[i],f'{len(bd):,}',True,QBKT_C[bkt])
+else:
+    st.warning("LastFollowupedOn date not available — cannot calculate quoted stage aging.")
+    # Fallback: show count only
+    W8f=[0.4,2,1,1.2]
+    hdrs(['','Rep','In Quoted Stage','View'],W8f)
+    for rep,rd,nt,nw,wp,rs in rep_rag:
+        rq=base[(base['Rep']==rep)&(base['FollowupStatus'].isin(QUOTED_S))]
+        if len(rq)==0: continue
+        c=st.columns(W8f); rag_cell(c[0],rs)
+        txt(c[1],rep,True,'#0F2044'); txt(c[2],f'{len(rq):,}')
+        if c[3].button(f"→ View {len(rq)}",key=f"t8fb_{rep}"):
+            drill(rq,f"Quoted stage — {rep}")
+
+# ── FOOTER ─────────────────────────────────────────────────────────────────────
+st.markdown("---")
+st.markdown(
+    f"<p style='text-align:center;color:#94A3B8;font-size:11px;'>"
+    f"MSafe Equipments  |  KIT19 CRM  |  {len(df_raw):,} leads in file  |  "
+    f"{total:,} leads in current filter  |  Dashboard date: {TODAY.strftime('%d %b %Y')}</p>",
+    unsafe_allow_html=True)
