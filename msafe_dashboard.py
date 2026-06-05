@@ -379,8 +379,8 @@ for rep in rep_order:
     num_btn(c[3], len(ro), f"t1o_{rep}", ro, f"Open — {rep}", '#92400E')
     num_btn(c[4], len(rl), f"t1l_{rep}", rl, f"Lost — {rep}", '#B91C1C')
     txt_cell(c[5], f"{wp}%", bold=True, color=wpc)
-rating = get_rating(wp)
-txt_cell(c[6], rating, bold=True)
+    rating = get_rating(wp)
+    txt_cell(c[6], rating, bold=True)
     if c[7].button(f"→ All {len(rd):,}", key=f"t1all_{rep}"):
         drill(rd, f"All leads — {rep}")
 
@@ -505,8 +505,8 @@ for src,sd,nw,nt in src_stats:
     num_btn(c[3], len(so), f"t3o_{src}", so, f"Open — {src}")
     num_btn(c[4], len(sl), f"t3l_{src}", sl, f"Lost — {src}")
     txt_cell(c[5], f"{wp}%", bold=True, color=wpc)
-  rating = get_rating(wp)
-txt_cell(c[6], rating, bold=True)
+    rating = get_rating(wp)
+    txt_cell(c[6], rating, bold=True)
     if c[7].button(f"→ All {nt:,}", key=f"t3a_{src}"):
         drill(sd, f"All leads — {src}")
 
