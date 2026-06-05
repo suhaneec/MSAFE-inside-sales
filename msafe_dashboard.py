@@ -101,6 +101,21 @@ RNR_S     = ['Call Back','RNR Call Back']
 TODAY     = pd.Timestamp.now().normalize()   # dynamic — works for any data period
 
 BASE = {'color':'#0F172A','font-size':'12px','font-weight':'500'}
+def get_rating(win_pct):
+    if win_pct >= 8:
+        return "🟢 Green"
+    elif win_pct >= 4:
+        return "🟡 Yellow"
+    else:
+        return "🔴 Red"
+
+def get_hygiene_rating(score):
+    if score >= 80:
+        return "🟢 Green"
+    elif score >= 60:
+        return "🟡 Yellow"
+    else:
+        return "🔴 Red"
 
 # ── LEAD DISPLAY COLUMNS ───────────────────────────────────────────────────────
 LCOLS = {
@@ -232,6 +247,18 @@ if 'Month' in reps_df.columns:
 else:
     sel_months = []
 
+# Date Range Filter
+if 'CreatedOn' in reps_df.columns:
+    min_date = reps_df['CreatedOn'].min().date()
+    max_date = reps_df['CreatedOn'].max().date()
+
+    date_range = st.sidebar.date_input(
+        "Created Date Range",
+        value=(min_date, max_date),
+        min_value=min_date,
+        max_value=max_date
+    )
+
 all_src = sorted(reps_df['Source'].dropna().unique().tolist())
 sel_src = st.sidebar.multiselect("Source", all_src, default=all_src)
 sel_stage = st.sidebar.multiselect("Stage", ['Open','Won','Lost'], default=['Open','Won','Lost'])
@@ -248,6 +275,13 @@ if sel_src:    base = base[base['Source'].isin(sel_src)]
 if sel_stage:  base = base[base['Stage'].isin(sel_stage)]
 if sel_months and 'Month' in base.columns:
     base = base[base['Month'].isin(sel_months)]
+if 'CreatedOn' in base.columns and len(date_range) == 2:
+    start_date, end_date = date_range
+
+    base = base[
+        (base['CreatedOn'].dt.date >= start_date) &
+        (base['CreatedOn'].dt.date <= end_date)
+    ]
 
 rep_order = (base.groupby('Rep')['Stage']
              .apply(lambda x:(x=='Won').sum())
@@ -316,7 +350,8 @@ st.markdown(
     f"<br>Hover the ℹ next to Won and Lost to see full stage list.</p>",
     unsafe_allow_html=True)
 
-WIDS1 = [2.2, 0.8, 0.85, 0.85, 0.85, 0.7, 1.3]
+WIDS1 = [2.2,0.8,0.85,0.85,0.85,0.7,1.0,1.3]
+
 
 # Column headers with full tooltip via title attribute
 st.markdown(
@@ -344,7 +379,9 @@ for rep in rep_order:
     num_btn(c[3], len(ro), f"t1o_{rep}", ro, f"Open — {rep}", '#92400E')
     num_btn(c[4], len(rl), f"t1l_{rep}", rl, f"Lost — {rep}", '#B91C1C')
     txt_cell(c[5], f"{wp}%", bold=True, color=wpc)
-    if c[6].button(f"→ All {len(rd):,}", key=f"t1all_{rep}"):
+rating = get_rating(wp)
+txt_cell(c[6], rating, bold=True)
+    if c[7].button(f"→ All {len(rd):,}", key=f"t1all_{rep}"):
         drill(rd, f"All leads — {rep}")
 
 tbl_sep()
@@ -446,9 +483,8 @@ st.download_button("⬇ Download Table 2 (CSV)", df2.to_csv(), "rep_source.csv",
 st.markdown("<div class='sec'>Table 3 — Source Performance</div>",unsafe_allow_html=True)
 st.markdown("<p class='note'>Sorted by Win % descending. Click any number to see those leads.</p>",
             unsafe_allow_html=True)
-
-WIDS3 = [2, 0.8, 0.8, 0.8, 0.8, 0.7, 1.3]
-tbl_header(['Source','Total','Won','Open','Lost','Win %','View all'], WIDS3)
+WIDS3 = [2,0.8,0.8,0.8,0.8,0.7,1.0,1.3]
+tbl_header(['Source','Total','Won','Open','Lost','Win %','Rating','View all'], WIDS3)
 
 src_stats=[]
 for src in src_display:
@@ -469,7 +505,9 @@ for src,sd,nw,nt in src_stats:
     num_btn(c[3], len(so), f"t3o_{src}", so, f"Open — {src}")
     num_btn(c[4], len(sl), f"t3l_{src}", sl, f"Lost — {src}")
     txt_cell(c[5], f"{wp}%", bold=True, color=wpc)
-    if c[6].button(f"→ All {nt:,}", key=f"t3a_{src}"):
+  rating = get_rating(wp)
+txt_cell(c[6], rating, bold=True)
+    if c[7].button(f"→ All {nt:,}", key=f"t3a_{src}"):
         drill(sd, f"All leads — {src}")
 
 tbl_sep()
@@ -480,6 +518,7 @@ txt_cell(tc3[2],f'{won:,}',bold=True,color='#0A6640')
 txt_cell(tc3[3],f'{opn:,}',bold=True,color='#92400E')
 txt_cell(tc3[4],f'{lost:,}',bold=True,color='#B91C1C')
 txt_cell(tc3[5],f'{wr}%',bold=True,color='#1D4ED8')
+txt_cell(tc3[6], get_rating(wr), bold=True)
 
 # ════════════════════════════════════════════════════════════════════════════════
 # TABLE 4 — AMOUNT (AmountPaid)
@@ -524,127 +563,227 @@ else:
 # ════════════════════════════════════════════════════════════════════════════════
 # TABLE 5 — STALE LEADS  (active lead aging buckets)
 # ════════════════════════════════════════════════════════════════════════════════
-st.markdown("<div class='sec'>Table 5 — Stale Open Leads (Age Buckets)</div>",unsafe_allow_html=True)
-st.markdown("<p class='note'>"
-            "Open leads only, bucketed by age from created date to today. "
-            "🟢 Fresh  🟡 Needs attention  🟠 Stale  🔴 Problem. Click any number.</p>",
-            unsafe_allow_html=True)
-
-if 'age_days' in base.columns:
-    def age_bkt(d):
-        if pd.isna(d) or d<0: return '0–7 days'
-        if d<=7:  return '0–7 days'
-        if d<=15: return '8–15 days'
-        if d<=30: return '16–30 days'
-        return '30+ days'
-    BKTS=['0–7 days','8–15 days','16–30 days','30+ days']
-    open_b=base[base['Stage']=='Open'].copy()
-    open_b['bkt']=open_b['age_days'].apply(age_bkt)
-    WIDS5=[2.2,0.9,1,1,1,0.9,1.2]
-    tbl_header(['Rep','Total Open','0–7 days','8–15 days','16–30 days','30+ days','→ All Open'],WIDS5)
-    bkt_colors={'0–7 days':'#0A6640','8–15 days':'#92400E','16–30 days':'#B45309','30+ days':'#B91C1C'}
-    for rep in rep_order:
-        rd=open_b[open_b['Rep']==rep]; n=len(rd)
-        if n==0: continue
-        c=st.columns(WIDS5)
-        txt_cell(c[0],rep,bold=True,color='#0F2044')
-        txt_cell(c[1],f'{n:,}')
-        for i,bkt in enumerate(BKTS,2):
-            bd=rd[rd['bkt']==bkt]
-            num_btn(c[i],len(bd),f"t5_{rep}_{bkt}",bd,f"{bkt} open — {rep}",bkt_colors[bkt])
-        if c[6].button(f"→ All {n}",key=f"t5a_{rep}"):
-            drill(rd,f"All open leads — {rep}")
-    tbl_sep()
-    tc5=st.columns(WIDS5); txt_cell(tc5[0],'TOTAL',bold=True)
-    txt_cell(tc5[1],f'{len(open_b):,}',bold=True)
-    for i,bkt in enumerate(BKTS,2):
-        bd=open_b[open_b['bkt']==bkt]
-        txt_cell(tc5[i],f'{len(bd):,}',bold=True,color=bkt_colors[bkt])
-else:
-    st.warning("CreatedOn date not available — cannot calculate aging.")
-
 # ════════════════════════════════════════════════════════════════════════════════
-# TABLE 6 — CRM HYGIENE  (daily report)
+# TABLE 6 — CRM HYGIENE (daily report)
 # ════════════════════════════════════════════════════════════════════════════════
-st.markdown("<div class='sec'>Table 6 — CRM Hygiene Report  (share with team daily)</div>",
-            unsafe_allow_html=True)
-st.markdown("<p class='note'>"
-            "Numbers only. Each number clickable — shows the exact leads causing the issue. "
-            "All metrics are for OPEN leads unless noted.</p>", unsafe_allow_html=True)
 
-WIDS6=[2,0.9,1.1,1.2,1.1,1.1,1.1,1.1]
+st.markdown(
+    "<div class='sec'>Table 6 — CRM Hygiene Report (share with team daily)</div>",
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    "<p class='note'>"
+    "Numbers only. Each number clickable — shows the exact leads causing the issue. "
+    "All metrics are for OPEN leads unless noted."
+    "</p>",
+    unsafe_allow_html=True
+)
+
+WIDS6=[2,0.9,1.1,1.2,1.1,1.1,1.1,1.1,1.0,1.0]
+
 tbl_header([
-    'Rep','Total Open',
+    'Rep',
+    'Total Open',
     'No Followup\nDate',
     'Overdue\nFollowup',
     'No City\nFilled',
     'No Category\nFilled',
     'RNR Stuck\n7+ Days',
-    '30+ Day\nOpen Leads'],
-    WIDS6)
+    '30+ Day\nOpen Leads',
+    'CRM Score',
+    'Rating'
+], WIDS6)
 
-open_all=base[base['Stage']=='Open'].copy()
+open_all = base[base['Stage']=='Open'].copy()
 
 for rep in rep_order:
-    rd=open_all[open_all['Rep']==rep]
-    if len(rd)==0: continue
 
-    # 1. No followup date
-    no_fu = rd[rd.get('FollowupDate_dt',pd.Series(dtype='datetime64[ns]',index=rd.index)).isna()] \
-        if 'FollowupDate_dt' in rd.columns else rd[rd['FollowupDate'].isna()] \
-        if 'FollowupDate' in rd.columns else pd.DataFrame()
+    rd = open_all[open_all['Rep']==rep]
 
-    # 2. Overdue followup (followup date < today, still open)
+    if len(rd)==0:
+        continue
+
+    # No Followup Date
+    no_fu = rd[
+        rd.get(
+            'FollowupDate_dt',
+            pd.Series(dtype='datetime64[ns]', index=rd.index)
+        ).isna()
+    ] if 'FollowupDate_dt' in rd.columns else pd.DataFrame()
+
+    # Overdue Followup
     if 'FollowupDate_dt' in rd.columns:
-        overdue=rd[rd['FollowupDate_dt'].notna() & (rd['FollowupDate_dt']<TODAY)]
+        overdue = rd[
+            rd['FollowupDate_dt'].notna() &
+            (rd['FollowupDate_dt'] < TODAY)
+        ]
     else:
-        overdue=pd.DataFrame()
+        overdue = pd.DataFrame()
 
-    # 3. No city
-    no_city=rd[rd['City'].isna()|rd['City'].astype(str).str.strip().isin(['','0','nan'])] \
-        if 'City' in rd.columns else pd.DataFrame()
+    # No City
+    no_city = rd[
+        rd['City'].isna() |
+        rd['City'].astype(str).str.strip().isin(['','0','nan'])
+    ] if 'City' in rd.columns else pd.DataFrame()
 
-    # 4. No category
-    no_cat=rd[rd['Category'].isna()|rd['Category'].astype(str).str.strip().isin(['','0','nan'])] \
-        if 'Category' in rd.columns else pd.DataFrame()
+    # No Category
+    no_cat = rd[
+        rd['Category'].isna() |
+        rd['Category'].astype(str).str.strip().isin(['','0','nan'])
+    ] if 'Category' in rd.columns else pd.DataFrame()
 
-    # 5. RNR stuck 7+ days
-    rnr_stuck=rd[rd['FollowupStatus'].isin(RNR_S)&(rd.get('age_days',0)>=7)] \
-        if 'age_days' in rd.columns else rd[rd['FollowupStatus'].isin(RNR_S)]
+    # RNR Stuck
+    rnr_stuck = rd[
+        rd['FollowupStatus'].isin(RNR_S) &
+        (rd.get('age_days',0) >= 7)
+    ] if 'age_days' in rd.columns else pd.DataFrame()
 
-    # 6. 30+ day open
-    old30=rd[rd.get('age_days',pd.Series(0,index=rd.index))>=30] \
-        if 'age_days' in rd.columns else pd.DataFrame()
+    # 30+ Days Open
+    old30 = rd[
+        rd.get('age_days', pd.Series(0,index=rd.index)) >= 30
+    ] if 'age_days' in rd.columns else pd.DataFrame()
 
-    c=st.columns(WIDS6)
-    txt_cell(c[0],rep,bold=True,color='#0F2044')
-    txt_cell(c[1],f'{len(rd):,}')
-    num_btn(c[2],len(no_fu),  f"h_nofu_{rep}",  no_fu,   f"No followup date — {rep}")
-    num_btn(c[3],len(overdue),f"h_over_{rep}",  overdue, f"Overdue followup — {rep}")
-    num_btn(c[4],len(no_city),f"h_ncity_{rep}", no_city, f"No city — {rep}")
-    num_btn(c[5],len(no_cat), f"h_ncat_{rep}",  no_cat,  f"No category — {rep}")
-    num_btn(c[6],len(rnr_stuck),f"h_rnr_{rep}", rnr_stuck,f"RNR stuck 7+ days — {rep}")
-    num_btn(c[7],len(old30),  f"h_old30_{rep}", old30,   f"30+ day open — {rep}")
+    # CRM SCORE
+    score = 100
+
+    score -= len(overdue) * 3
+    score -= len(no_fu) * 2
+    score -= len(no_city)
+    score -= len(no_cat)
+    score -= len(rnr_stuck)
+
+    score = max(score, 0)
+
+    if score >= 80:
+        rating = "🟢 Green"
+        score_color = "#0A6640"
+    elif score >= 60:
+        rating = "🟡 Yellow"
+        score_color = "#92400E"
+    else:
+        rating = "🔴 Red"
+        score_color = "#B91C1C"
+
+    c = st.columns(WIDS6)
+
+    txt_cell(c[0], rep, bold=True, color='#0F2044')
+    txt_cell(c[1], f'{len(rd):,}')
+
+    num_btn(c[2], len(no_fu),
+            f"h_nofu_{rep}",
+            no_fu,
+            f"No followup date — {rep}")
+
+    num_btn(c[3], len(overdue),
+            f"h_over_{rep}",
+            overdue,
+            f"Overdue followup — {rep}")
+
+    num_btn(c[4], len(no_city),
+            f"h_ncity_{rep}",
+            no_city,
+            f"No city — {rep}")
+
+    num_btn(c[5], len(no_cat),
+            f"h_ncat_{rep}",
+            no_cat,
+            f"No category — {rep}")
+
+    num_btn(c[6], len(rnr_stuck),
+            f"h_rnr_{rep}",
+            rnr_stuck,
+            f"RNR stuck 7+ days — {rep}")
+
+    num_btn(c[7], len(old30),
+            f"h_old30_{rep}",
+            old30,
+            f"30+ day open — {rep}")
+
+    txt_cell(c[8], str(score), bold=True, color=score_color)
+    txt_cell(c[9], rating, bold=True, color=score_color)
 
 tbl_sep()
-tc6=st.columns(WIDS6)
-no_fu_t  = open_all[open_all.get('FollowupDate_dt', open_all['FollowupDate'] if 'FollowupDate' in open_all.columns else open_all.index).isna()] if 'FollowupDate_dt' in open_all.columns or 'FollowupDate' in open_all.columns else pd.DataFrame()
-txt_cell(tc6[0],'TOTAL',bold=True)
-txt_cell(tc6[1],f'{len(open_all):,}',bold=True)
-for i,v in enumerate([
-    int(open_all['FollowupDate_dt'].isna().sum()) if 'FollowupDate_dt' in open_all.columns else '—',
-    int(len(open_all[open_all['FollowupDate_dt']<TODAY]) if 'FollowupDate_dt' in open_all.columns else 0),
-    int(open_all['City'].isna().sum()) if 'City' in open_all.columns else '—',
-    int(open_all['Category'].isna().sum()) if 'Category' in open_all.columns else '—',
-    int(len(open_all[open_all['FollowupStatus'].isin(RNR_S)&(open_all.get('age_days',0)>=7)])) if 'age_days' in open_all.columns else '—',
-    int(len(open_all[open_all.get('age_days',pd.Series(0,index=open_all.index))>=30])) if 'age_days' in open_all.columns else '—',
-], 2):
-    txt_cell(tc6[i], f'{v:,}' if isinstance(v,int) else v, bold=True, color='#B91C1C' if isinstance(v,int) and v>0 else '#0F172A')
 
-# ── FOOTER ─────────────────────────────────────────────────────────────────────
-st.markdown("---")
-st.markdown(
-    f"<p style='text-align:center;color:#94A3B8;font-size:11px;'>"
-    f"MSafe Equipments  |  KIT19 CRM  |  {len(df_raw):,} leads in file  |  "
-    f"{total:,} leads shown  |  Data as of {TODAY.strftime('%d %b %Y')}</p>",
-    unsafe_allow_html=True)
+tc6 = st.columns(WIDS6)
+
+txt_cell(tc6[0], 'TOTAL', bold=True)
+txt_cell(tc6[1], f'{len(open_all):,}', bold=True)
+
+total_no_fu = (
+    int(open_all['FollowupDate_dt'].isna().sum())
+    if 'FollowupDate_dt' in open_all.columns else 0
+)
+
+total_overdue = (
+    int(len(open_all[
+        open_all['FollowupDate_dt'] < TODAY
+    ]))
+    if 'FollowupDate_dt' in open_all.columns else 0
+)
+
+total_city = (
+    int(open_all['City'].isna().sum())
+    if 'City' in open_all.columns else 0
+)
+
+total_cat = (
+    int(open_all['Category'].isna().sum())
+    if 'Category' in open_all.columns else 0
+)
+
+total_rnr = (
+    int(len(open_all[
+        open_all['FollowupStatus'].isin(RNR_S) &
+        (open_all['age_days'] >= 7)
+    ]))
+    if 'age_days' in open_all.columns else 0
+)
+
+total_old30 = (
+    int(len(open_all[
+        open_all['age_days'] >= 30
+    ]))
+    if 'age_days' in open_all.columns else 0
+)
+
+totals = [
+    total_no_fu,
+    total_overdue,
+    total_city,
+    total_cat,
+    total_rnr,
+    total_old30
+]
+
+for i,v in enumerate(totals, start=2):
+    txt_cell(
+        tc6[i],
+        f'{v:,}',
+        bold=True,
+        color='#B91C1C' if v > 0 else '#0F172A'
+    )
+
+# Overall CRM Score
+overall_score = 100
+
+overall_score -= total_overdue * 3
+overall_score -= total_no_fu * 2
+overall_score -= total_city
+overall_score -= total_cat
+overall_score -= total_rnr
+
+overall_score = max(overall_score, 0)
+
+if overall_score >= 80:
+    overall_rating = "🟢 Green"
+    score_color = "#0A6640"
+elif overall_score >= 60:
+    overall_rating = "🟡 Yellow"
+    score_color = "#92400E"
+else:
+    overall_rating = "🔴 Red"
+    score_color = "#B91C1C"
+
+txt_cell(tc6[8], str(overall_score), bold=True, color=score_color)
+txt_cell(tc6[9], overall_rating, bold=True, color=score_color)
