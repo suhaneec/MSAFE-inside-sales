@@ -157,7 +157,17 @@ def load(fb):
     if raw[:100].lstrip()[:1] in (b'<', b'\xef'):
         # HTML format (new KIT19 export)
         import io
-        df = pd.read_html(io.BytesIO(raw))[0]
+        # Try parsers in order — lxml fastest, html5lib most forgiving
+        parsed = False
+        for flavor in ['lxml', 'html5lib', 'html.parser']:
+            try:
+                df = pd.read_html(io.BytesIO(raw), flavor=flavor)[0]
+                parsed = True
+                break
+            except Exception:
+                continue
+        if not parsed:
+            raise ValueError("Could not parse HTML export — try uploading as .xlsx instead")
     else:
         # True Excel format (old export)
         try:
