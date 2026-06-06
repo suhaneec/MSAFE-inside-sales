@@ -475,28 +475,32 @@ tot_txt(tc[ci], f"{wr}%", color='#1D4ED8')
 st.markdown("<div class='sec'>Table 2 — Quotation Analysis</div>", unsafe_allow_html=True)
 st.markdown("<p class='note'>"
             "All leads that reached any quoted stage. "
+            "Total Quoted = sub-stages (pending) + Won from Quote + Lost from Quote. "
             "RAG: 🔴 Quote→Win &lt;15%  🟡 15–30%  🟢 &gt;30%  — sorted red to green.</p>",
             unsafe_allow_html=True)
 
 ALL_Q_S  = QUOTED_S + WON_S + ['Quoted Order Lost']
 q_stages = [s for s in QUOTED_S if s in base['FollowupStatus'].values]
 
-W2 = [W_RAG, 1.8, 0.8, 0.8] + [W_SUB]*len(q_stages) + [0.8, 0.8, 0.7]
+# Total Quoted = sub-stages + Won + Lost — always equals sum of visible columns
+W2 = [W_RAG, 1.8, 0.8] + [W_SUB]*len(q_stages) + [0.8, 0.8, 0.7]
 h2 = st.columns(W2)
-hdr(h2[0],''); hdr(h2[1],'Rep'); hdr(h2[2],'Total Quoted'); hdr(h2[3],'In Quoted\n(Pending)')
-for i,s in enumerate(q_stages): hdr(h2[4+i], s[:14]+'…' if len(s)>14 else s, tip=s)
-hdr(h2[4+len(q_stages)],'Won from\nQuote')
-hdr(h2[5+len(q_stages)],'Lost from\nQuote')
-hdr(h2[6+len(q_stages)],'Quote→Win %')
+hdr(h2[0],''); hdr(h2[1],'Rep'); hdr(h2[2],'Total Quoted')
+for i,s in enumerate(q_stages): hdr(h2[3+i], s[:14]+'…' if len(s)>14 else s, tip=s)
+hdr(h2[3+len(q_stages)],'Won from\nQuote')
+hdr(h2[4+len(q_stages)],'Lost from\nQuote')
+hdr(h2[5+len(q_stages)],'Quote→Win %')
 
 qt_rows = []
 for rep in rep_order:
     rd   = base[base['Rep']==rep]
-    qa   = rd[rd['FollowupStatus'].isin(ALL_Q_S)]
     qcur = rd[rd['FollowupStatus'].isin(QUOTED_S)]
     qw   = rd[rd['FollowupStatus'].isin(WON_S)]
     ql   = rd[rd['FollowupStatus'].isin(['Quoted Order Lost'])]
-    nqa  = len(qa); nqw = len(qw); nql = len(ql)
+    nqw  = len(qw); nql = len(ql)
+    # Total Quoted = pending sub-stages + Won + Lost (always equals sum of visible columns)
+    nqa  = len(qcur) + nqw + nql
+    qa   = rd[rd['FollowupStatus'].isin(ALL_Q_S)]   # for drill-down
     qconv= round(nqw/(nqw+nql)*100,1) if (nqw+nql)>0 else 0
     rs   = rag_quote_conv(qconv) if nqa>0 else 1
     qt_rows.append((rep,rd,qa,qcur,qw,ql,nqa,nqw,nql,qconv,rs))
@@ -510,30 +514,29 @@ for rep,rd,qa,qcur,qw,ql,nqa,nqw,nql,qconv,rs in qt_rows:
     rag_cell(c[0], rs)
     txt(c[1], rep, True, '#0F2044')
     nbtn(c[2], nqa,       f"t2qa_{rep}",  qa,   f"All quoted — {rep}")
-    nbtn(c[3], len(qcur), f"t2qc_{rep}",  qcur, f"Currently in quoted — {rep}")
     for i,s in enumerate(q_stages):
         sd=rd[rd['FollowupStatus']==s]
-        nbtn(c[4+i],len(sd),f"t2qs_{rep}_{i}",sd,f"{s} — {rep}")
-    nbtn(c[4+len(q_stages)], nqw, f"t2qw_{rep}", qw, f"Won from quote — {rep}")
-    nbtn(c[5+len(q_stages)], nql, f"t2ql_{rep}", ql, f"Lost from quote — {rep}")
-    txt(c[6+len(q_stages)], f"{qconv}%", True, wpc)
+        nbtn(c[3+i],len(sd),f"t2qs_{rep}_{i}",sd,f"{s} — {rep}")
+    nbtn(c[3+len(q_stages)], nqw, f"t2qw_{rep}", qw, f"Won from quote — {rep}")
+    nbtn(c[4+len(q_stages)], nql, f"t2ql_{rep}", ql, f"Lost from quote — {rep}")
+    txt(c[5+len(q_stages)], f"{qconv}%", True, wpc)
 
 sep()
-qa_all=base[base['FollowupStatus'].isin(ALL_Q_S)]
-qcur_all=base[base['FollowupStatus'].isin(QUOTED_S)]
-qw_all=base[base['FollowupStatus'].isin(WON_S)]
-ql_all=base[base['FollowupStatus'].isin(['Quoted Order Lost'])]
-qt_conv=round(len(qw_all)/(len(qw_all)+len(ql_all))*100,1) if (len(qw_all)+len(ql_all))>0 else 0
-tc2=st.columns(W2)
+qcur_all = base[base['FollowupStatus'].isin(QUOTED_S)]
+qw_all   = base[base['FollowupStatus'].isin(WON_S)]
+ql_all   = base[base['FollowupStatus'].isin(['Quoted Order Lost'])]
+qa_all   = base[base['FollowupStatus'].isin(ALL_Q_S)]
+gt_nqa   = len(qcur_all) + len(qw_all) + len(ql_all)
+qt_conv  = round(len(qw_all)/(len(qw_all)+len(ql_all))*100,1) if (len(qw_all)+len(ql_all))>0 else 0
+tc2 = st.columns(W2)
 tot_txt(tc2[0],''); tot_txt(tc2[1],'TOTAL')
-nbtn(tc2[2],len(qa_all),'t2_gtot',qa_all,"All quoted leads")
-nbtn(tc2[3],len(qcur_all),'t2_gcur',qcur_all,"All currently in quoted")
+nbtn(tc2[2], gt_nqa, 't2_gtot', qa_all, "All quoted leads")
 for i,s in enumerate(q_stages):
     sd=base[base['FollowupStatus']==s]
-    nbtn(tc2[4+i],len(sd),f"t2gs_{i}",sd,f"All — {s}")
-nbtn(tc2[4+len(q_stages)],len(qw_all),'t2_gw',qw_all,"All won from quote")
-nbtn(tc2[5+len(q_stages)],len(ql_all),'t2_gl',ql_all,"All lost from quote")
-tot_txt(tc2[6+len(q_stages)],f"{qt_conv}%",'#1D4ED8')
+    nbtn(tc2[3+i],len(sd),f"t2gs_{i}",sd,f"All — {s}")
+nbtn(tc2[3+len(q_stages)], len(qw_all), 't2_gw', qw_all, "All won from quote")
+nbtn(tc2[4+len(q_stages)], len(ql_all), 't2_gl', ql_all, "All lost from quote")
+tot_txt(tc2[5+len(q_stages)], f"{qt_conv}%", '#1D4ED8')
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABLE 3 — QUOTED LEADS HYGIENE (stale quoted deals)
