@@ -93,7 +93,7 @@ SRC_MAP       = {
 MAIN_SRC      = ['JustDial','IndiaMart','IVR Call','Existing Client','Ex-Client Ref.','Facebook','Other']
 SRC_SHORT     = {'JustDial':'JD','IndiaMart':'IM','IVR Call':'IVR',
                  'Existing Client':'EC','Ex-Client Ref.':'ECR','Facebook':'FB','Other':'Oth'}
-TODAY         = pd.Timestamp.now().normalize()
+# TODAY is computed fresh each render as TODAY_NOW after filters are applied
 BASE          = {'color':'#0F172A','font-size':'12px','font-weight':'500'}
 
 WON_LABEL  = "Quoted Order Won And Executed"
@@ -159,11 +159,9 @@ def load(fb):
     df['Rep'] = df['LastFollowupCreatedByName'].str.replace('50988-','',regex=False)
     df.loc[df['is_admin'],'Rep'] = 'Admin'
     if 'CreatedOn' in df.columns:
-        df['CreatedOn']  = pd.to_datetime(df['CreatedOn'], errors='coerce')
-        df['age_days']   = (TODAY - df['CreatedOn']).dt.days.clip(lower=0)
+        df['CreatedOn'] = pd.to_datetime(df['CreatedOn'], errors='coerce')
     if 'LastFollowupedOn' in df.columns:
-        df['LastFollowupedOn']  = pd.to_datetime(df['LastFollowupedOn'], errors='coerce')
-        df['last_followup_age'] = (TODAY - df['LastFollowupedOn']).dt.days.clip(lower=0)
+        df['LastFollowupedOn'] = pd.to_datetime(df['LastFollowupedOn'], errors='coerce')
     if 'FollowupDate' in df.columns:
         df['FollowupDate_dt'] = pd.to_datetime(df['FollowupDate'], errors='coerce')
     if 'AmountPaid' in df.columns:
@@ -257,17 +255,19 @@ reps_df = df_raw[~df_raw['is_admin']].copy()
 # Sidebar filters
 st.sidebar.markdown("### Filters")
 
-# ── DATE RANGE — fully dynamic from data ──
+# ── DATE RANGE — two independent pickers, range from data ──────────────────
 if 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any():
-    min_d = reps_df['CreatedOn'].min().date()
-    max_d = reps_df['CreatedOn'].max().date()
-    dr = st.sidebar.date_input(
-        "Date range (Created On)",
-        value=[min_d, max_d],
-        min_value=min_d, max_value=max_d,
-        key='date_range')
+    _min = reps_df['CreatedOn'].min().date()
+    _max = reps_df['CreatedOn'].max().date()
+    st.sidebar.markdown("**Date Range (Lead Created On)**")
+    date_from = st.sidebar.date_input("From", value=_min,
+                                       min_value=_min, max_value=_max, key='dr_from')
+    date_to   = st.sidebar.date_input("To",   value=_max,
+                                       min_value=_min, max_value=_max, key='dr_to')
+    use_dates = True
 else:
-    dr = None
+    date_from = date_to = None
+    use_dates = False
 
 all_reps = sorted(reps_df['Rep'].dropna().unique().tolist())
 sel_reps = st.sidebar.multiselect("Rep", all_reps, default=all_reps)
@@ -277,18 +277,28 @@ sel_stg  = st.sidebar.multiselect("Stage", ['Open','Won','Lost'], default=['Open
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Leads in file:** {len(df_raw):,}")
-if dr and hasattr(dr,'__len__') and len(dr)==2:
-    st.sidebar.markdown(f"**Filtered:** {dr[0].strftime('%d %b %Y')} → {dr[1].strftime('%d %b %Y')}")
+if use_dates:
+    st.sidebar.markdown(f"**Showing:** {date_from.strftime('%d %b %Y')} → {date_to.strftime('%d %b %Y')}")
 
-# Apply filters
+# ── Apply filters ─────────────────────────────────────────────────────────────
 base = reps_df.copy()
-if dr and hasattr(dr,'__len__') and len(dr)==2 and 'CreatedOn' in base.columns:
-    base = base[(base['CreatedOn'].dt.date>=dr[0])&(base['CreatedOn'].dt.date<=dr[1])]
-elif dr and isinstance(dr, date_type) and 'CreatedOn' in base.columns:
-    base = base[base['CreatedOn'].dt.date==dr]
+# Date filter — purely driven by user's sidebar selection
+if use_dates and 'CreatedOn' in base.columns:
+    base = base[
+        (base['CreatedOn'].dt.date >= date_from) &
+        (base['CreatedOn'].dt.date <= date_to)
+    ]
 if sel_reps: base=base[base['Rep'].isin(sel_reps)]
 if sel_src:  base=base[base['Source'].isin(sel_src)]
 if sel_stg:  base=base[base['Stage'].isin(sel_stg)]
+
+# ── Age calculations — done HERE (not in cache) so always uses today's date ───
+TODAY_NOW = pd.Timestamp.now().normalize()
+if 'CreatedOn' in base.columns:
+    base = base.copy()
+    base['age_days'] = (TODAY_NOW - base['CreatedOn']).dt.days.clip(lower=0)
+if 'LastFollowupedOn' in base.columns:
+    base['last_followup_age'] = (TODAY_NOW - base['LastFollowupedOn']).dt.days.clip(lower=0)
 
 rep_order=(base.groupby('Rep')['Stage']
            .apply(lambda x:(x=='Won').sum())
@@ -305,7 +315,7 @@ st.markdown(
     "<span style='color:white !important;font-size:18px;font-weight:700;'>"
     "MSafe Equipments — Inside Sales Dashboard</span>"
     "<span style='color:#8BAFD4;font-size:12px;'>KIT19 CRM  |  Today: "
-    f"{TODAY.strftime('%d %b %Y')}</span></div>",unsafe_allow_html=True)
+    f"{pd.Timestamp.now().strftime('%d %b %Y')}</span></div>",unsafe_allow_html=True)
 
 kc=st.columns(6)
 def kpi(col,l,v,cls=''):
@@ -314,7 +324,7 @@ def kpi(col,l,v,cls=''):
 kpi(kc[0],'Total Leads',f'{total:,}')
 kpi(kc[1],'Won',f'{won:,}','g'); kpi(kc[2],'Open',f'{opn:,}','a')
 kpi(kc[3],'Lost',f'{lost:,}','r'); kpi(kc[4],'Win Rate',f'{wr}%','b')
-kpi(kc[5],'As of',TODAY.strftime('%d %b %Y'))
+kpi(kc[5],'As of',pd.Timestamp.now().strftime('%d %b %Y'))
 
 bk=st.columns(4)
 for col,(lbl,df_) in zip(bk,[('All leads',base),('Won leads',base[base['Stage']=='Won']),
@@ -594,7 +604,7 @@ for rep,rd,nt,nw,wp,_ in rep_rag:
     rdo=oa[oa['Rep']==rep]; no=len(rdo)
     if no==0: continue
     no_fu  = rdo[rdo['FollowupDate_dt'].isna()] if 'FollowupDate_dt' in rdo.columns else pd.DataFrame()
-    overdue= rdo[rdo['FollowupDate_dt'].notna()&(rdo['FollowupDate_dt']<TODAY)] \
+    overdue= rdo[rdo['FollowupDate_dt'].notna()&(rdo['FollowupDate_dt']<TODAY_NOW)] \
              if 'FollowupDate_dt' in rdo.columns else pd.DataFrame()
     no_city= rdo[rdo['City'].isna()|rdo['City'].astype(str).str.strip().isin(['','0','nan'])] \
              if 'City' in rdo.columns else pd.DataFrame()
@@ -622,7 +632,7 @@ sep()
 tc6=st.columns(W6); txt(tc6[0],''); txt(tc6[1],'TOTAL',True); txt(tc6[2],f'{len(oa):,}',True)
 cols6_totals=[
     int(oa['FollowupDate_dt'].isna().sum()) if 'FollowupDate_dt' in oa.columns else 0,
-    int(len(oa[oa['FollowupDate_dt']<TODAY])) if 'FollowupDate_dt' in oa.columns else 0,
+    int(len(oa[oa['FollowupDate_dt']<TODAY_NOW])) if 'FollowupDate_dt' in oa.columns else 0,
     int(oa['City'].isna().sum()) if 'City' in oa.columns else 0,
     int(oa['Category'].isna().sum()) if 'Category' in oa.columns else 0,
     int(len(oa[oa['FollowupStatus'].isin(RNR_S)&(oa.get('last_followup_age',pd.Series(0,index=oa.index))>=7)])) if 'last_followup_age' in oa.columns else 0,
@@ -754,5 +764,5 @@ st.markdown("---")
 st.markdown(
     f"<p style='text-align:center;color:#94A3B8;font-size:11px;'>"
     f"MSafe Equipments  |  KIT19 CRM  |  {len(df_raw):,} leads in file  |  "
-    f"{total:,} leads in current filter  |  Dashboard date: {TODAY.strftime('%d %b %Y')}</p>",
+    f"{total:,} leads in current filter  |  Dashboard date: {pd.Timestamp.now().strftime('%d %b %Y')}</p>",
     unsafe_allow_html=True)
