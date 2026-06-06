@@ -150,22 +150,62 @@ def rag_src(wp):
 # ── DATA LOAD ──────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner="Loading CRM data…")
 def load(fb):
-    df = pd.read_excel(BytesIO(fb), engine='openpyxl')
+    # ── Auto-detect file format ───────────────────────────────────────────────
+    # New KIT19 exports are HTML tables saved as .xls
+    # Old exports are true Excel (.xls / .xlsx)
+    raw = bytes(fb)
+    if raw[:100].lstrip()[:1] in (b'<', b'\xef'):
+        # HTML format (new KIT19 export)
+        import io
+        df = pd.read_html(io.BytesIO(raw))[0]
+    else:
+        # True Excel format (old export)
+        try:
+            df = pd.read_excel(io.BytesIO(raw), engine='openpyxl')
+        except Exception:
+            df = pd.read_excel(io.BytesIO(raw), engine='xlrd')
+
+    # ── Stage classification (same for both formats) ──────────────────────────
     df['Stage'] = df['FollowupStatus'].apply(
         lambda x:'Won' if x in WON_S else('Lost' if x in LOST_S else 'Open'))
-    df['Source'] = df['SourceName'].replace(SRC_MAP)
+
+    # ── Source cleaning (same for both formats) ───────────────────────────────
+    if 'SourceName' in df.columns:
+        df['Source'] = df['SourceName'].replace(SRC_MAP)
+    else:
+        df['Source'] = 'Other'
     df['Source_group'] = df['Source'].apply(lambda x:x if x in MAIN_SRC else 'Other')
-    df['is_admin'] = df['LastFollowupCreatedByName'].isin(ADMIN)
-    df['Rep'] = df['LastFollowupCreatedByName'].str.replace('50988-','',regex=False)
-    df.loc[df['is_admin'],'Rep'] = 'Admin'
-    if 'CreatedOn' in df.columns:
-        df['CreatedOn'] = pd.to_datetime(df['CreatedOn'], errors='coerce')
-    if 'LastFollowupedOn' in df.columns:
-        df['LastFollowupedOn'] = pd.to_datetime(df['LastFollowupedOn'], errors='coerce')
+
+    # ── Rep assignment — handles both old and new format ──────────────────────
+    if 'assigneduser' in df.columns and df['assigneduser'].notna().any():
+        # NEW FORMAT: "50988-Neerajana (Neerajana Gupta)"
+        # Extract the clean name from inside brackets, fall back to login
+        def parse_rep_new(val):
+            if pd.isna(val) or str(val).strip() in ('', 'nan'): return 'Unassigned'
+            s = str(val).strip()
+            if '(' in s and ')' in s:
+                return s[s.index('(')+1 : s.index(')')].strip()
+            # No brackets — strip prefix
+            return s.replace('50988-','').strip()
+        df['Rep'] = df['assigneduser'].apply(parse_rep_new)
+        df['is_admin'] = df['Rep'].isin(['Unassigned','msafe947362'])
+    else:
+        # OLD FORMAT: LastFollowupCreatedByName like "50988-Simmi"
+        df['is_admin'] = df['LastFollowupCreatedByName'].isin(ADMIN)
+        df['Rep'] = df['LastFollowupCreatedByName'].str.replace('50988-','',regex=False)
+        df.loc[df['is_admin'],'Rep'] = 'Admin'
+
+    # ── Date parsing (same for both formats, pandas auto-detects formats) ─────
+    for col in ['CreatedOn','LastFollowupedOn','ModifiedOn']:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce', dayfirst=True)
     if 'FollowupDate' in df.columns:
-        df['FollowupDate_dt'] = pd.to_datetime(df['FollowupDate'], errors='coerce')
+        df['FollowupDate_dt'] = pd.to_datetime(df['FollowupDate'], errors='coerce', dayfirst=True)
+
+    # ── Amount ────────────────────────────────────────────────────────────────
     if 'AmountPaid' in df.columns:
         df['AmountPaid'] = pd.to_numeric(df['AmountPaid'], errors='coerce').fillna(0)
+
     return df
 
 def prep_leads(df):
