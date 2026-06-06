@@ -260,10 +260,8 @@ if 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any():
     _min = reps_df['CreatedOn'].min().date()
     _max = reps_df['CreatedOn'].max().date()
     st.sidebar.markdown("**Date Range (Lead Created On)**")
-    date_from = st.sidebar.date_input("From", value=_min,
-                                       min_value=_min, max_value=_max, key='dr_from')
-    date_to   = st.sidebar.date_input("To",   value=_max,
-                                       min_value=_min, max_value=_max, key='dr_to')
+    date_from = st.sidebar.date_input("From", value=_min, key='dr_from')
+    date_to   = st.sidebar.date_input("To",   value=_max, key='dr_to')
     use_dates = True
 else:
     date_from = date_to = None
