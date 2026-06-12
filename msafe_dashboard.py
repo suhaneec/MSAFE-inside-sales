@@ -10,7 +10,7 @@ st.set_page_config(page_title="MSafe CRM Dashboard", page_icon="📊",
 # ── SESSION STATE ──────────────────────────────────────────────────────────────
 for k,v in [('drill_df',None),('drill_label',''),
             ('exp_won',False),('exp_act',False),('exp_lost',False),
-            ('date_from',None),('date_to',None)]:
+            ('_file_id', None)]:
     if k not in st.session_state: st.session_state[k] = v
 
 def drill(df, label):
@@ -245,9 +245,7 @@ st.sidebar.markdown("---")
 uploaded = st.sidebar.file_uploader("Upload CRM export (.xls / .xlsx)", type=['xls','xlsx'])
 
 if not uploaded:
-    # Reset date session state when file is removed
-    st.session_state.date_from = None
-    st.session_state.date_to   = None
+    st.session_state._file_id = None
     _,m,_ = st.columns([1,2,1])
     with m:
         st.markdown("<br><br>",unsafe_allow_html=True)
@@ -266,7 +264,7 @@ if not uploaded:
 df_raw  = load(uploaded.read())
 reps_df = df_raw[~df_raw['is_admin']].copy()
 
-# ── DATE FILTER — persisted in session state ────────────────────────────────
+# ── DATE FILTER ────────────────────────────────────────────────────────────────
 st.sidebar.markdown("### Filters")
 
 use_dates = False
@@ -274,38 +272,31 @@ if 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any():
     _mn = reps_df['CreatedOn'].dropna().min().date()
     _mx = reps_df['CreatedOn'].dropna().max().date()
 
-    # FIX: Initialise session state bounds only once per file load
-    # (or when they fall outside the valid range for this file)
-    if st.session_state.date_from is None or st.session_state.date_from < _mn or st.session_state.date_from > _mx:
-        st.session_state.date_from = _mn
-    if st.session_state.date_to is None or st.session_state.date_to < _mn or st.session_state.date_to > _mx:
-        st.session_state.date_to = _mx
+    # Detect when a new file is uploaded by comparing a fingerprint.
+    # When the file changes, clear the saved date keys so widgets reset.
+    _fid = (len(df_raw), str(_mn), str(_mx))
+    if st.session_state._file_id != _fid:
+        st.session_state._file_id = _fid
+        # Remove stale date keys so date_input uses its `value=` default
+        for _k in ('_dr_from', '_dr_to'):
+            if _k in st.session_state:
+                del st.session_state[_k]
 
     st.sidebar.markdown("**Date Range (Lead Created On)**")
 
-    # FIX: Use session_state as the value source; on_change updates session state
-    def _sync_from(): st.session_state.date_from = st.session_state._dr_from
-    def _sync_to():   st.session_state.date_to   = st.session_state._dr_to
-
-    st.sidebar.date_input(
-        "From",
-        value=st.session_state.date_from,
-        min_value=_mn, max_value=_mx,
-        key='_dr_from', on_change=_sync_from
+    # Use the widget key directly as the source of truth.
+    # Streamlit persists widget state across reruns via its key —
+    # no manual session_state sync needed.
+    date_from = st.sidebar.date_input(
+        "From", value=_mn, min_value=_mn, max_value=_mx, key='_dr_from'
     )
-    st.sidebar.date_input(
-        "To",
-        value=st.session_state.date_to,
-        min_value=_mn, max_value=_mx,
-        key='_dr_to', on_change=_sync_to
+    date_to = st.sidebar.date_input(
+        "To",   value=_mx, min_value=_mn, max_value=_mx, key='_dr_to'
     )
-
-    date_from = st.session_state.date_from
-    date_to   = st.session_state.date_to
 
     # Guard: ensure from <= to
     if date_from > date_to:
-        st.sidebar.warning("⚠️ 'From' date is after 'To' date — showing all data.")
+        st.sidebar.warning("⚠️ 'From' date is after 'To' — showing full range.")
         date_from, date_to = _mn, _mx
 
     use_dates = True
