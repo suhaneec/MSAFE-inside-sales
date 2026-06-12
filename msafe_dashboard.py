@@ -9,7 +9,8 @@ st.set_page_config(page_title="MSafe CRM Dashboard", page_icon="📊",
 
 # ── SESSION STATE ──────────────────────────────────────────────────────────────
 for k,v in [('drill_df',None),('drill_label',''),
-            ('exp_won',False),('exp_act',False),('exp_lost',False)]:
+            ('exp_won',False),('exp_act',False),('exp_lost',False),
+            ('date_from',None),('date_to',None)]:
     if k not in st.session_state: st.session_state[k] = v
 
 def drill(df, label):
@@ -89,7 +90,6 @@ LOST_S   = ['Not-Interested','Not Search Our Product','Regret',
 QUOTED_S = ['Quoted In Follow Up','Quoted Order In Pipeline','Quote In Progress',
             'Interested Quote Sent','Quoted Not Picking Call','Quoted Project On Hold']
 
-# Preferred display order for sub-stages
 WON_ORDER  = ['Quoted Order Won And Executed']
 ACT_ORDER  = ['Call Back','RNR Call Back','MS Requirement Call Back',
               'Interested Catalogue Sent','Interested Quote Sent',
@@ -124,7 +124,7 @@ RAG = {0:'🔴', 1:'🟡', 2:'🟢'}
 def rag_win(wp):
     return 2 if wp>=5 else (1 if wp>=2 else 0)
 
-def rag_stale(pct_7plus):   # % not touched in 7+ days
+def rag_stale(pct_7plus):
     return 2 if pct_7plus<30 else (1 if pct_7plus<60 else 0)
 
 def rag_quote_conv(pct):
@@ -245,6 +245,9 @@ st.sidebar.markdown("---")
 uploaded = st.sidebar.file_uploader("Upload CRM export (.xls / .xlsx)", type=['xls','xlsx'])
 
 if not uploaded:
+    # Reset date session state when file is removed
+    st.session_state.date_from = None
+    st.session_state.date_to   = None
     _,m,_ = st.columns([1,2,1])
     with m:
         st.markdown("<br><br>",unsafe_allow_html=True)
@@ -263,16 +266,52 @@ if not uploaded:
 df_raw  = load(uploaded.read())
 reps_df = df_raw[~df_raw['is_admin']].copy()
 
+# ── DATE FILTER — persisted in session state ────────────────────────────────
 st.sidebar.markdown("### Filters")
+
+use_dates = False
 if 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any():
-    _mn = reps_df['CreatedOn'].min().date()
-    _mx = reps_df['CreatedOn'].max().date()
+    _mn = reps_df['CreatedOn'].dropna().min().date()
+    _mx = reps_df['CreatedOn'].dropna().max().date()
+
+    # FIX: Initialise session state bounds only once per file load
+    # (or when they fall outside the valid range for this file)
+    if st.session_state.date_from is None or st.session_state.date_from < _mn or st.session_state.date_from > _mx:
+        st.session_state.date_from = _mn
+    if st.session_state.date_to is None or st.session_state.date_to < _mn or st.session_state.date_to > _mx:
+        st.session_state.date_to = _mx
+
     st.sidebar.markdown("**Date Range (Lead Created On)**")
-    date_from = st.sidebar.date_input("From", value=_mn, key='dr_from')
-    date_to   = st.sidebar.date_input("To",   value=_mx, key='dr_to')
+
+    # FIX: Use session_state as the value source; on_change updates session state
+    def _sync_from(): st.session_state.date_from = st.session_state._dr_from
+    def _sync_to():   st.session_state.date_to   = st.session_state._dr_to
+
+    st.sidebar.date_input(
+        "From",
+        value=st.session_state.date_from,
+        min_value=_mn, max_value=_mx,
+        key='_dr_from', on_change=_sync_from
+    )
+    st.sidebar.date_input(
+        "To",
+        value=st.session_state.date_to,
+        min_value=_mn, max_value=_mx,
+        key='_dr_to', on_change=_sync_to
+    )
+
+    date_from = st.session_state.date_from
+    date_to   = st.session_state.date_to
+
+    # Guard: ensure from <= to
+    if date_from > date_to:
+        st.sidebar.warning("⚠️ 'From' date is after 'To' date — showing all data.")
+        date_from, date_to = _mn, _mx
+
     use_dates = True
 else:
-    date_from = date_to = None; use_dates = False
+    date_from = date_to = None
+    st.sidebar.info("No CreatedOn data found in file — date filter unavailable.")
 
 all_reps = sorted(reps_df['Rep'].dropna().unique().tolist())
 sel_reps = st.sidebar.multiselect("Rep", all_reps, default=all_reps)
@@ -284,18 +323,30 @@ st.sidebar.markdown(f"**Leads in file:** {len(df_raw):,}")
 if use_dates:
     st.sidebar.markdown(f"**Period:** {date_from.strftime('%d %b %Y')} → {date_to.strftime('%d %b %Y')}")
 
-# Apply filters
+# ── APPLY FILTERS ──────────────────────────────────────────────────────────────
 base = reps_df.copy()
 if use_dates and 'CreatedOn' in base.columns:
-    base = base[(base['CreatedOn'].dt.date>=date_from)&(base['CreatedOn'].dt.date<=date_to)]
+    # FIX: Normalise to date for comparison — avoids time-component mismatches
+    # Also include the full 'To' day (leads created at any time on date_to)
+    mask = (
+        base['CreatedOn'].dt.normalize() >= pd.Timestamp(date_from)
+    ) & (
+        base['CreatedOn'].dt.normalize() <= pd.Timestamp(date_to)
+    )
+    base = base[mask]
+
 if sel_reps: base = base[base['Rep'].isin(sel_reps)]
 if sel_src:  base = base[base['Source'].isin(sel_src)]
+
+# FIX: Show live count of matched leads immediately after filter
+if use_dates:
+    st.sidebar.markdown(f"**Leads after filter:** {len(base):,}")
 
 # Age calculations — always fresh
 TODAY_NOW = pd.Timestamp.now().normalize()
 base = base.copy()
-if 'CreatedOn'       in base.columns: base['age_days']         = (TODAY_NOW-base['CreatedOn']).dt.days.clip(lower=0)
-if 'LastFollowupedOn' in base.columns: base['last_fu_age']      = (TODAY_NOW-base['LastFollowupedOn']).dt.days.clip(lower=0)
+if 'CreatedOn'        in base.columns: base['age_days']    = (TODAY_NOW - base['CreatedOn']).dt.days.clip(lower=0)
+if 'LastFollowupedOn' in base.columns: base['last_fu_age'] = (TODAY_NOW - base['LastFollowupedOn']).dt.days.clip(lower=0)
 
 # Aggregates
 total = len(base)
@@ -304,7 +355,6 @@ lost  = int((base['Stage']=='Lost').sum())
 opn   = int((base['Stage']=='Open').sum())
 wr    = round(won/total*100,1) if total else 0
 
-# Get actual stages present in data
 def stages_present(df, order, stage_filter=None):
     if stage_filter:
         sub = df[df['Stage']==stage_filter]['FollowupStatus']
@@ -323,7 +373,6 @@ rep_order = (base.groupby('Rep')['Stage']
              .apply(lambda x:(x=='Won').sum())
              .sort_values(ascending=False).index.tolist())
 
-# Sort reps by RAG (red first)
 def rep_rag_score(rep):
     rd = base[base['Rep']==rep]
     wp = round(len(rd[rd['Stage']=='Won'])/len(rd)*100,1) if len(rd) else 0
@@ -365,8 +414,16 @@ else:
         "👆 Click any number in the tables below to see the leads behind it."
         "</div>", unsafe_allow_html=True)
 
+# ── EMPTY STATE GUARD ──────────────────────────────────────────────────────────
+if total == 0:
+    st.warning(f"⚠️ No leads found for the selected filters "
+               f"({date_from.strftime('%d %b %Y') if use_dates else '—'} → "
+               f"{date_to.strftime('%d %b %Y') if use_dates else '—'}). "
+               f"Try widening the date range or adjusting Rep/Source filters.")
+    st.stop()
+
 # ══════════════════════════════════════════════════════════════════════════════
-# TABLE 1 — REP STAGE BREAKDOWN  (collapsible Won / Active / Lost)
+# TABLE 1 — REP STAGE BREAKDOWN
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='sec'>Table 1 — Rep Stage Breakdown</div>", unsafe_allow_html=True)
 st.markdown("<p class='note'>"
@@ -374,7 +431,6 @@ st.markdown("<p class='note'>"
             "Click ▶ to expand sub-stages. Every number shows leads.</p>",
             unsafe_allow_html=True)
 
-# Expand toggles
 tc1,tc2,tc3,_ = st.columns([1.4,1.4,1.4,3.8])
 if tc1.button(f"{'▼' if st.session_state.exp_won else '▶'} Won ({len(won_stages)} stage)",
               key='tog_won'):
@@ -386,7 +442,6 @@ if tc3.button(f"{'▼' if st.session_state.exp_lost else '▶'} Lost ({len(lost_
               key='tog_lost'):
     st.session_state.exp_lost = not st.session_state.exp_lost; st.rerun()
 
-# Build dynamic widths
 W_RAG,W_REP,W_TOT,W_GRP,W_SUB,W_WIN = 0.35,1.8,0.7,0.75,0.58,0.65
 widths = [W_RAG, W_REP, W_TOT, W_GRP]
 if st.session_state.exp_won:  widths += [W_SUB]*len(won_stages)
@@ -396,11 +451,8 @@ widths += [W_GRP]
 if st.session_state.exp_lost: widths += [W_SUB]*len(lost_stages)
 widths += [W_WIN]
 
-# Header row
 hcols = st.columns(widths)
-hdr(hcols[0],'')
-hdr(hcols[1],'Rep')
-hdr(hcols[2],'Total')
+hdr(hcols[0],''); hdr(hcols[1],'Rep'); hdr(hcols[2],'Total')
 ci = 3
 hdr(hcols[ci],'Won','grp-hdr-won'); ci+=1
 if st.session_state.exp_won:
@@ -416,7 +468,6 @@ if st.session_state.exp_lost:
         hdr(hcols[ci], s[:14]+'…' if len(s)>14 else s, 'grp-hdr-lost', tip=s); ci+=1
 hdr(hcols[ci],'Win %')
 
-# Data rows — sorted red to green
 for rep in rep_sorted:
     rd  = base[base['Rep']==rep]
     rw  = rd[rd['Stage']=='Won']
@@ -447,7 +498,6 @@ for rep in rep_sorted:
             nbtn(c[ci],len(sd),f"t1ls_{rep}_{i}",sd,f"{s} — {rep}"); ci+=1
     txt(c[ci], f"{wp}%", bold=True, color=wpc)
 
-# Grand total row
 sep()
 tc = st.columns(widths)
 tot_txt(tc[0],''); tot_txt(tc[1],'TOTAL')
@@ -482,7 +532,6 @@ st.markdown("<p class='note'>"
 ALL_Q_S  = QUOTED_S + WON_S + ['Quoted Order Lost']
 q_stages = [s for s in QUOTED_S if s in base['FollowupStatus'].values]
 
-# Total Quoted = sub-stages + Won + Lost — always equals sum of visible columns
 W2 = [W_RAG, 1.8, 0.8] + [W_SUB]*len(q_stages) + [0.8, 0.8, 0.7]
 h2 = st.columns(W2)
 hdr(h2[0],''); hdr(h2[1],'Rep'); hdr(h2[2],'Total Quoted')
@@ -498,14 +547,13 @@ for rep in rep_order:
     qw   = rd[rd['FollowupStatus'].isin(WON_S)]
     ql   = rd[rd['FollowupStatus'].isin(['Quoted Order Lost'])]
     nqw  = len(qw); nql = len(ql)
-    # Total Quoted = pending sub-stages + Won + Lost (always equals sum of visible columns)
     nqa  = len(qcur) + nqw + nql
-    qa   = rd[rd['FollowupStatus'].isin(ALL_Q_S)]   # for drill-down
+    qa   = rd[rd['FollowupStatus'].isin(ALL_Q_S)]
     qconv= round(nqw/(nqw+nql)*100,1) if (nqw+nql)>0 else 0
     rs   = rag_quote_conv(qconv) if nqa>0 else 1
     qt_rows.append((rep,rd,qa,qcur,qw,ql,nqa,nqw,nql,qconv,rs))
 
-qt_rows.sort(key=lambda x:x[10])   # red first
+qt_rows.sort(key=lambda x:x[10])
 
 for rep,rd,qa,qcur,qw,ql,nqa,nqw,nql,qconv,rs in qt_rows:
     if nqa==0: continue
@@ -539,7 +587,7 @@ nbtn(tc2[4+len(q_stages)], len(ql_all), 't2_gl', ql_all, "All lost from quote")
 tot_txt(tc2[5+len(q_stages)], f"{qt_conv}%", '#1D4ED8')
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TABLE 3 — QUOTED LEADS HYGIENE (stale quoted deals)
+# TABLE 3 — QUOTED LEADS HYGIENE
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='sec'>Table 3 — Quoted Leads Hygiene — Stale Quoted Deals</div>",
             unsafe_allow_html=True)
@@ -551,7 +599,6 @@ st.markdown("<p class='note'>"
 
 qcur_base = base[base['FollowupStatus'].isin(QUOTED_S)].copy()
 BKTS3 = ['0–7 days','8–15 days','16–30 days','30+ days']
-BKT_C = {'0–7 days':'#0A6640','8–15 days':'#92400E','16–30 days':'#B45309','30+ days':'#B91C1C'}
 
 def age_bkt3(d):
     if pd.isna(d) or d<0: return '0–7 days'
@@ -595,7 +642,7 @@ for i,b in enumerate(BKTS3):
     nbtn(tc3[3+i],len(bd),f"t3gb_{i}",bd,f"All quoted — {b}")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TABLE 4 — ACTIVE PIPELINE AGING  (age from LastFollowupedOn)
+# TABLE 4 — ACTIVE PIPELINE AGING
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='sec'>Table 4 — Active Pipeline Aging</div>", unsafe_allow_html=True)
 st.markdown("<p class='note'>"
@@ -669,7 +716,6 @@ for rep,*_ in sorted([(r,rep_rag_score(r)) for r in rep_order],key=lambda x:x[1]
     row['Win %']=f"{wp}%"
     rows5.append(row)
 
-# Grand total
 gt={'RAG':'','Rep':'TOTAL'}
 for src in src_avail:
     sd=base[base['Source_group']==src]
@@ -711,7 +757,6 @@ st.dataframe(
                else(f'{x:,}' if isinstance(x,(int,float)) else x)),
     use_container_width=True, height=460)
 
-# Drill selector for Table 5
 st.markdown("<p class='note'>Click to drill into any cell:</p>", unsafe_allow_html=True)
 d1,d2,d3,d4,d5=st.columns([2,2,2,2,1.2])
 d_rep=d1.selectbox("Rep",['All']+rep_order,key='t5_rep')
