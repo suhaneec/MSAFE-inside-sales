@@ -9,7 +9,8 @@ st.set_page_config(page_title="MSafe CRM Dashboard", page_icon="📊",
 
 # ── SESSION STATE ──────────────────────────────────────────────────────────────
 for k,v in [('drill_df',None),('drill_label',''),
-            ('exp_won',False),('exp_act',False),('exp_lost',False)]:
+            ('exp_won',False),('exp_act',False),('exp_lost',False),
+            ('applied_filters', None)]:
     if k not in st.session_state: st.session_state[k] = v
 
 def drill(df, label):
@@ -258,31 +259,89 @@ reps_df = df_raw[~df_raw['is_admin']].copy()
 # ── SIDEBAR FILTERS ────────────────────────────────────────────────────────────
 st.sidebar.markdown("### Filters")
 
-# ── Date selector (display only — not used for filtering) ─────────────────────
-if 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any():
+# Date range — only shown if data has CreatedOn
+has_dates = 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any()
+if has_dates:
     _mn = reps_df['CreatedOn'].dropna().min().date()
     _mx = reps_df['CreatedOn'].dropna().max().date()
     st.sidebar.markdown("**Date Range (Lead Created On)**")
-    date_from = st.sidebar.date_input("From", value=_mn, key='_dr_from')
-    date_to   = st.sidebar.date_input("To",   value=_mx, key='_dr_to')
+    # value=None means no date pre-selected; user must pick
+    _df = st.sidebar.date_input("From", value=None, min_value=_mn, max_value=_mx, key='_dr_from')
+    _dt = st.sidebar.date_input("To",   value=None, min_value=_mn, max_value=_mx, key='_dr_to')
+    st.sidebar.caption(f"Data available: {_mn.strftime('%d %b %Y')} → {_mx.strftime('%d %b %Y')}")
 else:
-    date_from = date_to = None
+    _df = _dt = None
 
-# ── Rep + Source filters ───────────────────────────────────────────────────────
 all_reps = sorted(reps_df['Rep'].dropna().unique().tolist())
 sel_reps = st.sidebar.multiselect("Rep", all_reps, default=all_reps)
 all_src  = sorted(reps_df['Source'].dropna().unique().tolist())
 sel_src  = st.sidebar.multiselect("Source", all_src, default=all_src)
 
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"**Leads in file:** {len(df_raw):,}")
-if date_from and date_to:
-    st.sidebar.markdown(f"**Period:** {date_from.strftime('%d %b %Y')} → {date_to.strftime('%d %b %Y')}")
 
-# ── APPLY FILTERS (Rep + Source only) ─────────────────────────────────────────
+# ── APPLY BUTTON ───────────────────────────────────────────────────────────────
+if st.sidebar.button("✅ Apply Filters", use_container_width=True, type="primary"):
+    st.session_state.applied_filters = {
+        'date_from': _df,
+        'date_to':   _dt,
+        'reps':      sel_reps,
+        'src':       sel_src,
+    }
+    st.session_state.drill_df = None   # clear any open drill when filters change
+
+if st.sidebar.button("🔄 Reset All Filters", use_container_width=True):
+    st.session_state.applied_filters = None
+    st.session_state.drill_df = None
+    # Clear the date inputs from session state so they go back to blank
+    for _k in ('_dr_from', '_dr_to'):
+        if _k in st.session_state:
+            del st.session_state[_k]
+    st.rerun()
+
+st.sidebar.markdown(f"**Leads in file:** {len(df_raw):,}")
+
+# ── RESOLVE ACTIVE FILTERS ─────────────────────────────────────────────────────
+# Use applied_filters if set, otherwise show all data (no date filter)
+af = st.session_state.applied_filters
+if af is None:
+    # Nothing applied yet — use Rep+Source defaults, no date filter
+    active_date_from = None
+    active_date_to   = None
+    active_reps      = all_reps
+    active_src       = all_src
+else:
+    active_date_from = af['date_from']
+    active_date_to   = af['date_to']
+    active_reps      = af['reps']
+    active_src       = af['src']
+
+# Show what's active
+if active_date_from and active_date_to:
+    st.sidebar.success(f"📅 {active_date_from.strftime('%d %b %Y')} → {active_date_to.strftime('%d %b %Y')}")
+elif active_date_from or active_date_to:
+    st.sidebar.warning("⚠️ Set both From and To dates, then Apply.")
+else:
+    st.sidebar.info("📅 No date filter active — showing all dates.")
+
+# ── APPLY FILTERS TO DATA ──────────────────────────────────────────────────────
 base = reps_df.copy()
-if sel_reps: base = base[base['Rep'].isin(sel_reps)]
-if sel_src:  base = base[base['Source'].isin(sel_src)]
+
+# Date filter — only when both dates are set
+if active_date_from and active_date_to:
+    if active_date_from <= active_date_to:
+        mask = (
+            base['CreatedOn'].dt.normalize() >= pd.Timestamp(active_date_from)
+        ) & (
+            base['CreatedOn'].dt.normalize() <= pd.Timestamp(active_date_to)
+        )
+        base = base[mask]
+    else:
+        st.sidebar.error("From date must be before To date.")
+
+if active_reps: base = base[base['Rep'].isin(active_reps)]
+if active_src:  base = base[base['Source'].isin(active_src)]
+
+st.sidebar.markdown(f"**Showing:** {len(base):,} leads")
 
 # Age calculations — always fresh
 TODAY_NOW = pd.Timestamp.now().normalize()
