@@ -9,8 +9,7 @@ st.set_page_config(page_title="MSafe CRM Dashboard", page_icon="📊",
 
 # ── SESSION STATE ──────────────────────────────────────────────────────────────
 for k,v in [('drill_df',None),('drill_label',''),
-            ('exp_won',False),('exp_act',False),('exp_lost',False),
-            ('_file_id', None)]:
+            ('exp_won',False),('exp_act',False),('exp_lost',False)]:
     if k not in st.session_state: st.session_state[k] = v
 
 def drill(df, label):
@@ -121,17 +120,10 @@ LCOLS = {'LeadNo':'Lead #','PersonName':'Customer','CompanyName':'Company',
 # ── RAG HELPERS ────────────────────────────────────────────────────────────────
 RAG = {0:'🔴', 1:'🟡', 2:'🟢'}
 
-def rag_win(wp):
-    return 2 if wp>=5 else (1 if wp>=2 else 0)
-
-def rag_stale(pct_7plus):
-    return 2 if pct_7plus<30 else (1 if pct_7plus<60 else 0)
-
-def rag_quote_conv(pct):
-    return 2 if pct>=30 else (1 if pct>=15 else 0)
-
-def rag_active_age(pct_7plus):
-    return 2 if pct_7plus<25 else (1 if pct_7plus<50 else 0)
+def rag_win(wp):      return 2 if wp>=5 else (1 if wp>=2 else 0)
+def rag_stale(p):     return 2 if p<30  else (1 if p<60  else 0)
+def rag_quote_conv(p):return 2 if p>=30 else (1 if p>=15 else 0)
+def rag_active_age(p):return 2 if p<25  else (1 if p<50  else 0)
 
 # ── LOAD ──────────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner="Loading CRM data…")
@@ -245,7 +237,6 @@ st.sidebar.markdown("---")
 uploaded = st.sidebar.file_uploader("Upload CRM export (.xls / .xlsx)", type=['xls','xlsx'])
 
 if not uploaded:
-    st.session_state._file_id = None
     _,m,_ = st.columns([1,2,1])
     with m:
         st.markdown("<br><br>",unsafe_allow_html=True)
@@ -264,46 +255,20 @@ if not uploaded:
 df_raw  = load(uploaded.read())
 reps_df = df_raw[~df_raw['is_admin']].copy()
 
-# ── DATE FILTER ────────────────────────────────────────────────────────────────
+# ── SIDEBAR FILTERS ────────────────────────────────────────────────────────────
 st.sidebar.markdown("### Filters")
 
-use_dates = False
+# ── Date selector (display only — not used for filtering) ─────────────────────
 if 'CreatedOn' in reps_df.columns and reps_df['CreatedOn'].notna().any():
     _mn = reps_df['CreatedOn'].dropna().min().date()
     _mx = reps_df['CreatedOn'].dropna().max().date()
-
-    # Detect when a new file is uploaded by comparing a fingerprint.
-    # When the file changes, clear the saved date keys so widgets reset.
-    _fid = (len(df_raw), str(_mn), str(_mx))
-    if st.session_state._file_id != _fid:
-        st.session_state._file_id = _fid
-        # Remove stale date keys so date_input uses its `value=` default
-        for _k in ('_dr_from', '_dr_to'):
-            if _k in st.session_state:
-                del st.session_state[_k]
-
     st.sidebar.markdown("**Date Range (Lead Created On)**")
-
-    # Use the widget key directly as the source of truth.
-    # Streamlit persists widget state across reruns via its key —
-    # no manual session_state sync needed.
-    date_from = st.sidebar.date_input(
-        "From", value=_mn, min_value=_mn, max_value=_mx, key='_dr_from'
-    )
-    date_to = st.sidebar.date_input(
-        "To",   value=_mx, min_value=_mn, max_value=_mx, key='_dr_to'
-    )
-
-    # Guard: ensure from <= to
-    if date_from > date_to:
-        st.sidebar.warning("⚠️ 'From' date is after 'To' — showing full range.")
-        date_from, date_to = _mn, _mx
-
-    use_dates = True
+    date_from = st.sidebar.date_input("From", value=_mn, key='_dr_from')
+    date_to   = st.sidebar.date_input("To",   value=_mx, key='_dr_to')
 else:
     date_from = date_to = None
-    st.sidebar.info("No CreatedOn data found in file — date filter unavailable.")
 
+# ── Rep + Source filters ───────────────────────────────────────────────────────
 all_reps = sorted(reps_df['Rep'].dropna().unique().tolist())
 sel_reps = st.sidebar.multiselect("Rep", all_reps, default=all_reps)
 all_src  = sorted(reps_df['Source'].dropna().unique().tolist())
@@ -311,27 +276,13 @@ sel_src  = st.sidebar.multiselect("Source", all_src, default=all_src)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Leads in file:** {len(df_raw):,}")
-if use_dates:
+if date_from and date_to:
     st.sidebar.markdown(f"**Period:** {date_from.strftime('%d %b %Y')} → {date_to.strftime('%d %b %Y')}")
 
-# ── APPLY FILTERS ──────────────────────────────────────────────────────────────
+# ── APPLY FILTERS (Rep + Source only) ─────────────────────────────────────────
 base = reps_df.copy()
-if use_dates and 'CreatedOn' in base.columns:
-    # FIX: Normalise to date for comparison — avoids time-component mismatches
-    # Also include the full 'To' day (leads created at any time on date_to)
-    mask = (
-        base['CreatedOn'].dt.normalize() >= pd.Timestamp(date_from)
-    ) & (
-        base['CreatedOn'].dt.normalize() <= pd.Timestamp(date_to)
-    )
-    base = base[mask]
-
 if sel_reps: base = base[base['Rep'].isin(sel_reps)]
 if sel_src:  base = base[base['Source'].isin(sel_src)]
-
-# FIX: Show live count of matched leads immediately after filter
-if use_dates:
-    st.sidebar.markdown(f"**Leads after filter:** {len(base):,}")
 
 # Age calculations — always fresh
 TODAY_NOW = pd.Timestamp.now().normalize()
@@ -404,14 +355,6 @@ else:
         "padding:10px 16px;color:#64748B;font-size:13px;margin-bottom:10px;'>"
         "👆 Click any number in the tables below to see the leads behind it."
         "</div>", unsafe_allow_html=True)
-
-# ── EMPTY STATE GUARD ──────────────────────────────────────────────────────────
-if total == 0:
-    st.warning(f"⚠️ No leads found for the selected filters "
-               f"({date_from.strftime('%d %b %Y') if use_dates else '—'} → "
-               f"{date_to.strftime('%d %b %Y') if use_dates else '—'}). "
-               f"Try widening the date range or adjusting Rep/Source filters.")
-    st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABLE 1 — REP STAGE BREAKDOWN
@@ -584,7 +527,7 @@ st.markdown("<div class='sec'>Table 3 — Quoted Leads Hygiene — Stale Quoted 
             unsafe_allow_html=True)
 st.markdown("<p class='note'>"
             "Only leads currently in a quoted stage. "
-            "<b>Age = days since LastFollowupedOn</b> (when they were marked quoted). "
+            "<b>Age = days since LastFollowupedOn</b>. "
             "RAG: 🔴 &gt;60% stuck 7+ days  🟡 30–60%  🟢 &lt;30% — sorted red to green.</p>",
             unsafe_allow_html=True)
 
@@ -593,7 +536,7 @@ BKTS3 = ['0–7 days','8–15 days','16–30 days','30+ days']
 
 def age_bkt3(d):
     if pd.isna(d) or d<0: return '0–7 days'
-    if d<=7: return '0–7 days'
+    if d<=7:  return '0–7 days'
     if d<=15: return '8–15 days'
     if d<=30: return '16–30 days'
     return '30+ days'
@@ -637,8 +580,7 @@ for i,b in enumerate(BKTS3):
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='sec'>Table 4 — Active Pipeline Aging</div>", unsafe_allow_html=True)
 st.markdown("<p class='note'>"
-            "All Open leads. <b>Age = days since Last Followed Up On</b> — "
-            "how long since the rep last touched this lead. "
+            "All Open leads. <b>Age = days since Last Followed Up On</b>. "
             "RAG: 🔴 &gt;50% not touched in 7+ days  🟡 25–50%  🟢 &lt;25% — sorted red to green.</p>",
             unsafe_allow_html=True)
 
@@ -687,7 +629,6 @@ st.markdown("<p class='note'>"
             unsafe_allow_html=True)
 
 src_avail=[s for s in MAIN_SRC if base[base['Source_group']==s].shape[0]>0]
-SUB4=['Total','Won','Lost','Active']
 
 rows5=[]
 for rep,*_ in sorted([(r,rep_rag_score(r)) for r in rep_order],key=lambda x:x[1]):
