@@ -160,11 +160,25 @@ def load(fb):
         df['Rep']      = df['LastFollowupCreatedByName'].str.replace('50988-','',regex=False)
         df.loc[df['is_admin'],'Rep'] = 'Admin'
 
-    for col in ['CreatedOn','LastFollowupedOn']:
+    def _parse_dates(series):
+        # KIT19 exports DD-MM-YYYY or DD/MM/YYYY. Try explicit formats to avoid
+        # pandas silently swapping day/month on ambiguous values (e.g. 05-06 -> May 6)
+        for fmt in ('%d-%m-%Y %H:%M:%S', '%d/%m/%Y %H:%M:%S',
+                    '%d-%m-%Y', '%d/%m/%Y',
+                    '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
+            try:
+                parsed = pd.to_datetime(series, format=fmt, errors='coerce')
+                if parsed.notna().sum() >= 0.8 * max(series.notna().sum(), 1):
+                    return parsed
+            except Exception:
+                pass
+        return pd.to_datetime(series, errors='coerce', dayfirst=True)
+
+    for col in ['CreatedOn', 'LastFollowupedOn']:
         if col in df.columns:
-            df[col] = pd.to_datetime(df[col], errors='coerce', dayfirst=True)
+            df[col] = _parse_dates(df[col])
     if 'FollowupDate' in df.columns:
-        df['FollowupDate_dt'] = pd.to_datetime(df['FollowupDate'], errors='coerce', dayfirst=True)
+        df['FollowupDate_dt'] = _parse_dates(df['FollowupDate'])
     if 'AmountPaid' in df.columns:
         df['AmountPaid'] = pd.to_numeric(df['AmountPaid'], errors='coerce').fillna(0)
     return df
