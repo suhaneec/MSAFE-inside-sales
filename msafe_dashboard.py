@@ -161,9 +161,10 @@ def load(fb):
         df.loc[df['is_admin'],'Rep'] = 'Admin'
 
     def _parse_dates(series):
-        # KIT19 exports DD-MM-YYYY or DD/MM/YYYY. Try explicit formats to avoid
-        # pandas silently swapping day/month on ambiguous values (e.g. 05-06 -> May 6)
-        for fmt in ('%d-%m-%Y %H:%M:%S', '%d/%m/%Y %H:%M:%S',
+        # KIT19 exports dates as 'DD-Mon-YYYY HH:MM:SS' e.g. '31-May-2026 23:03:15'
+        # Try that first, then fall back through other common formats.
+        for fmt in ('%d-%b-%Y %H:%M:%S', '%d-%b-%Y',
+                    '%d-%m-%Y %H:%M:%S', '%d/%m/%Y %H:%M:%S',
                     '%d-%m-%Y', '%d/%m/%Y',
                     '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
             try:
