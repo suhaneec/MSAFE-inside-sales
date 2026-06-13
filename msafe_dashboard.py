@@ -147,18 +147,51 @@ def load(fb):
         df['Source'] = 'Other'
     df['Source_group'] = df['Source'].apply(lambda x: x if x in MAIN_SRC else 'Other')
 
-    if 'assigneduser' in df.columns and df['assigneduser'].notna().any():
-        def parse_rep(val):
-            if pd.isna(val) or str(val).strip() in ('','nan'): return 'Unassigned'
-            s = str(val).strip()
-            if '(' in s and ')' in s: return s[s.index('(')+1:s.index(')')].strip()
-            return s.replace('50988-','').strip()
-        df['Rep']      = df['assigneduser'].apply(parse_rep)
-        df['is_admin'] = df['Rep'].isin(['Unassigned','msafe947362'])
+    def _extract_rep_name(val):
+        """Extract rep name from assigneduser field like '50988-Neerajana (Neerajana Gupta)'."""
+        if pd.isna(val) or str(val).strip() in ('', 'nan'):
+            return None
+        s = str(val).strip()
+        if '(' in s and ')' in s:
+            return s[s.index('(')+1:s.index(')')].strip()
+        return s.replace('50988-','').strip()
+
+    def _extract_lastfu_name(val):
+        """Extract rep name from LastFollowupCreatedByName like '50988-Neerajana'."""
+        if pd.isna(val) or str(val).strip() in ('', 'nan'):
+            return None
+        return str(val).strip().replace('50988-','').strip()
+
+    if 'assigneduser' in df.columns:
+        df['Rep'] = df['assigneduser'].apply(_extract_rep_name)
+        # For rows where assigneduser is blank, fall back to LastFollowupCreatedByName
+        if 'LastFollowupCreatedByName' in df.columns:
+            fallback_mask = df['Rep'].isna()
+            df.loc[fallback_mask, 'Rep'] = df.loc[fallback_mask, 'LastFollowupCreatedByName'].apply(_extract_lastfu_name)
+        # Still blank = truly unassigned
+        df['Rep'] = df['Rep'].fillna('Unassigned')
+    elif 'LastFollowupCreatedByName' in df.columns:
+        df['Rep'] = df['LastFollowupCreatedByName'].apply(_extract_lastfu_name).fillna('Unassigned')
     else:
-        df['is_admin'] = df['LastFollowupCreatedByName'].isin(ADMIN)
-        df['Rep']      = df['LastFollowupCreatedByName'].str.replace('50988-','',regex=False)
-        df.loc[df['is_admin'],'Rep'] = 'Admin'
+        df['Rep'] = 'Unassigned'
+
+    # Build a login→fullname map from rows that have both assigneduser AND LastFollowupCreatedByName
+    # e.g. '50988-Neerajana' → 'Neerajana Gupta'
+    if 'assigneduser' in df.columns and 'LastFollowupCreatedByName' in df.columns:
+        has_both = df['assigneduser'].notna() & df['LastFollowupCreatedByName'].notna()
+        login_to_full = {}
+        for _, row in df[has_both].iterrows():
+            login = _extract_lastfu_name(row['LastFollowupCreatedByName'])
+            full  = _extract_rep_name(row['assigneduser'])
+            if login and full and login != full:
+                login_to_full[login] = full
+        # Apply: replace short login names with full names
+        df['Rep'] = df['Rep'].apply(lambda r: login_to_full.get(r, r))
+
+    # Only pure admin account is admin — everyone else shown
+    df['is_admin'] = df['Rep'].isin(['msafe947362', 'Admin'])
+    df.loc[df['Rep'].str.lower().str.contains('admin', na=False), 'is_admin'] = True
+    df.loc[df['is_admin'], 'Rep'] = 'Admin'
 
     def _parse_dates(series):
         # KIT19 exports dates as 'DD-Mon-YYYY HH:MM:SS' e.g. '31-May-2026 23:03:15'
@@ -290,7 +323,7 @@ if not uploaded:
     st.stop()
 
 df_raw  = load(uploaded.read())
-reps_df = df_raw[~df_raw['is_admin']].copy()
+reps_df = df_raw.copy()  # include ALL leads; Admin rows still present but shown as 'Admin' rep
 
 # ── SIDEBAR — FILTERS ──────────────────────────────────────────────────────────
 st.sidebar.markdown("### Filters")
