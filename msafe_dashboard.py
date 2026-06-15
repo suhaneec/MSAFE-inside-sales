@@ -102,15 +102,26 @@ LOST_ORDER = ['Not-Interested','Not Search Our Product','Regret',
               'Repeat Lead','Rental Period Less Than 7 Days']
 ADMIN    = ['msafe947362','50988-Surbhi']
 SRC_MAP  = {
+    # JustDial variants
     'Just Dial':'JustDial','Justdial':'JustDial','Justdial (Justdial)':'JustDial',
+    # IndiaMart variants
     'Paid clasifieds':'IndiaMart','Paid classifieds':'IndiaMart','Indiamart':'IndiaMart',
+    # Existing Client variants
     'Exisiting Client Refrence':'Ex-Client Ref.','Existing Client Reference':'Ex-Client Ref.',
+    # IVR variants
     'IVR CALL':'IVR Call','IVR call':'IVR Call',
+    # Website/Organic variants
     'Popup Enquiry':'Website','Webiste':'Website','Product Detail Page':'Website',
-    'SEO Landing Pages (Generic)':'Google Ads','Google-Ad (Generic)':'Google Ads',
+    # Google Ads / SEO variants
+    'SEO Landing Pages (Generic)':'SEO','SEO':'SEO',
+    'Google Ads':'Google Ads','Google-Ad (Generic)':'Google Ads',
+    # TradeIndia
+    'TradeIndia':'TradeIndia',
+    # Misc → Other
     'Advertisement':'Other','Aajjo':'Other',
 }
-MAIN_SRC = ['JustDial','IndiaMart','IVR Call','Existing Client','Ex-Client Ref.','Facebook','Other']
+MAIN_SRC = ['JustDial','IndiaMart','IVR Call','TradeIndia','Google Ads','SEO',
+            'Existing Client','Ex-Client Ref.','Facebook','Other']
 LCOLS    = {'LeadNo':'Lead #','PersonName':'Customer','CompanyName':'Company',
             'City':'City','Source':'Source','Category':'Category','Rep':'Rep',
             'FollowupStatus':'Status','Stage':'Stage','CreatedOn':'Created',
