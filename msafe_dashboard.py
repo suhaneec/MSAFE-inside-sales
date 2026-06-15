@@ -71,7 +71,7 @@ section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"] *{
 
 /* ── TABLE SECTION HEADERS ── */
 .sec{background:#0F2044;padding:6px 14px;border-radius:5px;
-     font-weight:700;font-size:12px;margin:10px 0 2px;}
+     font-weight:700;font-size:12px;margin:6px 0 1px;}
 /* Force white text inside .sec — overrides the global dark color rule */
 .sec, .sec *{color:white !important;}
 
@@ -105,10 +105,25 @@ button[data-testid="baseButton-secondary"]{
     padding:0px 3px !important;font-size:13px !important;min-height:22px !important;
     line-height:1.2 !important;}
 
-/* ── REDUCE BLOCK SPACING ── */
-.block-container{padding-top:0.5rem !important;padding-bottom:0.5rem !important;}
-div[data-testid="stVerticalBlock"]{gap:0rem !important;}
+/* ── REDUCE BLOCK SPACING — aggressive compact ── */
+.block-container{padding-top:0.3rem !important;padding-bottom:0.3rem !important;
+    padding-left:1rem !important;padding-right:1rem !important;}
+div[data-testid="stVerticalBlock"]{gap:0px !important;}
+div[data-testid="stVerticalBlockBorderWrapper"]{padding:0px !important;}
 div[data-testid="column"]{padding:0px 2px !important;}
+/* Kill gap between ALL stacked elements */
+div[data-testid="stVerticalBlock"] > div{gap:0px !important;margin:0px !important;}
+/* Streamlit default element containers */
+div.element-container{margin:0px !important;padding:0px !important;}
+div[data-testid="stMarkdownContainer"]{margin:0px !important;padding:0px !important;}
+/* Button containers */
+div[data-testid="stButton"]{margin:0px !important;padding:0px !important;}
+/* Kill the gap Streamlit adds between columns */
+div[data-testid="stHorizontalBlock"]{gap:4px !important;margin:0px !important;}
+/* KPI drill button — make it tiny and flush */
+div.stButton > button[data-testid="baseButton-secondary"]{
+    margin-top:1px !important;margin-bottom:0px !important;
+    height:20px !important;font-size:11px !important;}
 </style>""", unsafe_allow_html=True)
 
 # ── CONSTANTS ──────────────────────────────────────────────────────────────────
@@ -322,7 +337,7 @@ def rag_cell(col, score):
                  f"{RAG[score]}</div>", unsafe_allow_html=True)
 
 def sep():
-    st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:0px 0;'>",
+    st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:0;padding:0;'>",
                 unsafe_allow_html=True)
 
 def tot_txt(col, val, color='#0F172A'):
@@ -342,8 +357,7 @@ uploaded = st.sidebar.file_uploader("Upload CRM export (.xls / .xlsx)", type=['x
 if not uploaded:
     _, m, _ = st.columns([1,2,1])
     with m:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown(
+                st.markdown(
             "<div style='text-align:center;padding:48px 24px;background:white;"
             "border-radius:12px;border:1px solid #E2E8F0;'>"
             "<div style='font-size:52px;'>📂</div>"
