@@ -125,7 +125,8 @@ MAIN_SRC = ['JustDial','IndiaMart','IVR Call','TradeIndia','Google Ads','SEO',
 LCOLS    = {'LeadNo':'Lead #','PersonName':'Customer','CompanyName':'Company',
             'City':'City','Source':'Source','Category':'Category','Rep':'Rep',
             'FollowupStatus':'Status','Stage':'Stage','CreatedOn':'Created',
-            'age_days':'Age (days)','LastFollowupedOn':'Last Contact','Remarks':'Remarks'}
+            'age_days':'Lead Age (days)','last_fu_age':'Days Since Followup',
+            'LastFollowupedOn':'Last Contact','Remarks':'Remarks'}
 
 # Aging buckets — FIXED clear boundaries
 BKTS = ['0–7 days','8–15 days','16–30 days','30+ days']
@@ -245,6 +246,10 @@ def prep_leads(df):
     for dc in ['Created','Last Contact']:
         if dc in out.columns:
             out[dc] = pd.to_datetime(out[dc], errors='coerce').dt.strftime('%d %b %Y')
+    # Show age columns as clean integers
+    for dc in ['Lead Age (days)', 'Days Since Followup']:
+        if dc in out.columns:
+            out[dc] = pd.to_numeric(out[dc], errors='coerce').astype('Int64')
     return out
 
 def show_drill():
