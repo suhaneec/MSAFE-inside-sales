@@ -26,6 +26,8 @@ html,body,.stApp,[data-testid="stAppViewContainer"],
     background:#F8FAFC !important;color:#0F172A !important;}
 [data-testid="stMain"] *,.block-container *,
 .stMarkdown *,[data-testid="stMarkdownContainer"] *{color:#0F172A !important;}
+
+/* ── SIDEBAR ── */
 section[data-testid="stSidebar"],section[data-testid="stSidebar"]>div{background:#0F2044 !important;}
 section[data-testid="stSidebar"] *{color:white !important;}
 section[data-testid="stSidebar"] hr{border-color:#2D5F9E !important;}
@@ -46,29 +48,48 @@ section[data-testid="stSidebar"] .stTextInput input{
     background:#162955 !important;border:1px solid #2D5F9E !important;
     border-radius:6px !important;color:white !important;}
 section[data-testid="stSidebar"] .stTextInput input::placeholder{color:#8BAFD4 !important;opacity:1 !important;}
-.kpi{background:white;border-radius:10px;padding:14px;text-align:center;
-     box-shadow:0 2px 6px rgba(0,0,0,0.07);border-top:3px solid #CBD5E1;height:80px;
+/* Reset button in sidebar — black text on white bg */
+section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"]{
+    background:white !important;color:#0F172A !important;border:1px solid #CBD5E1 !important;}
+section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"] *{
+    color:#0F172A !important;}
+
+/* ── KPI CARDS ── */
+.kpi{background:white;border-radius:8px;padding:10px 12px;text-align:center;
+     box-shadow:0 2px 6px rgba(0,0,0,0.07);border-top:3px solid #CBD5E1;
      display:flex;flex-direction:column;justify-content:center;cursor:pointer;}
 .kpi:hover{box-shadow:0 4px 12px rgba(15,32,68,0.15);border-top-color:#0F2044;}
-.kpi-l{font-size:10px;color:#64748B;font-weight:700;text-transform:uppercase;
-       letter-spacing:.06em;margin-bottom:4px;}
-.kpi-v{font-size:22px;font-weight:800;color:#0F2044;}
-.kpi-v.g{color:#0A6640;}.kpi-v.r{color:#B91C1C;}
-.kpi-v.a{color:#92400E;}.kpi-v.b{color:#1D4ED8;}
+.kpi-l{font-size:10px;color:#64748B !important;font-weight:700;text-transform:uppercase;
+       letter-spacing:.06em;margin-bottom:3px;}
+.kpi-v{font-size:20px;font-weight:800;color:#0F2044 !important;}
+.kpi-v.g{color:#0A6640 !important;}.kpi-v.r{color:#B91C1C !important;}
+.kpi-v.a{color:#92400E !important;}.kpi-v.b{color:#1D4ED8 !important;}
+
+/* ── DRILL BOX ── */
 .drill-box{background:#EEF2FF;border:1px solid #C7D2FE;border-left:4px solid #0F2044;
-           border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:12px;}
-.sec{background:#0F2044;color:white !important;padding:9px 16px;border-radius:6px;
-     font-weight:700;font-size:13px;margin:20px 0 4px;}
-.note{font-size:11px;color:#64748B;font-style:italic;margin:0 0 6px;}
-.col-hdr{font-size:10px;font-weight:700;color:#475569;
-         border-bottom:2px solid #0F2044;padding-bottom:2px;margin-bottom:2px;
+           border-radius:0 8px 8px 0;padding:8px 14px;margin-bottom:8px;}
+
+/* ── TABLE SECTION HEADERS ── */
+.sec{background:#0F2044;padding:6px 14px;border-radius:5px;
+     font-weight:700;font-size:12px;margin:10px 0 2px;}
+/* Force white text inside .sec — overrides the global dark color rule */
+.sec, .sec *{color:white !important;}
+
+/* ── TABLE NOTES ── */
+.note{font-size:10px;color:#64748B;font-style:italic;margin:0 0 3px;}
+
+/* ── TABLE COLUMN HEADERS ── */
+.col-hdr{font-size:11px;font-weight:700;color:#475569;
+         border-bottom:2px solid #0F2044;padding-bottom:1px;margin-bottom:1px;
          overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
-.grp-hdr-won{font-size:10px;font-weight:800;color:#0A6640;
-             border-bottom:3px solid #0A6640;padding-bottom:2px;margin-bottom:2px;}
-.grp-hdr-act{font-size:10px;font-weight:800;color:#92400E;
-             border-bottom:3px solid #F59E0B;padding-bottom:2px;margin-bottom:2px;}
-.grp-hdr-lost{font-size:10px;font-weight:800;color:#B91C1C;
-              border-bottom:3px solid #B91C1C;padding-bottom:2px;margin-bottom:2px;}
+.grp-hdr-won{font-size:11px;font-weight:800;color:#0A6640;
+             border-bottom:3px solid #0A6640;padding-bottom:1px;margin-bottom:1px;}
+.grp-hdr-act{font-size:11px;font-weight:800;color:#92400E;
+             border-bottom:3px solid #F59E0B;padding-bottom:1px;margin-bottom:1px;}
+.grp-hdr-lost{font-size:11px;font-weight:800;color:#B91C1C;
+              border-bottom:3px solid #B91C1C;padding-bottom:1px;margin-bottom:1px;}
+
+/* ── DATAFRAME ── */
 [data-testid="stDataFrame"] th,[data-testid="stDataFrame"] [role="columnheader"],
 [data-testid="stDataFrame"] [role="columnheader"]*{
     background:#1B3A6B !important;color:white !important;
@@ -78,12 +99,16 @@ section[data-testid="stSidebar"] .stTextInput input::placeholder{color:#8BAFD4 !
 [data-testid="stDataFrame"] [role="rowheader"],[data-testid="stDataFrame"] [role="rowheader"]*{
     color:#0F172A !important;font-size:11px !important;
     font-weight:600 !important;background:#F1F5F9 !important;}
+
+/* ── TABLE BUTTONS (numbers) ── */
 button[data-testid="baseButton-secondary"]{
-    padding:1px 4px !important;font-size:13px !important;min-height:24px !important;}
-.col-hdr{font-size:11px !important;}
-.grp-hdr-won{font-size:11px !important;}
-.grp-hdr-act{font-size:11px !important;}
-.grp-hdr-lost{font-size:11px !important;}
+    padding:0px 3px !important;font-size:13px !important;min-height:22px !important;
+    line-height:1.2 !important;}
+
+/* ── REDUCE BLOCK SPACING ── */
+.block-container{padding-top:0.5rem !important;padding-bottom:0.5rem !important;}
+div[data-testid="stVerticalBlock"]{gap:0rem !important;}
+div[data-testid="column"]{padding:0px 2px !important;}
 </style>""", unsafe_allow_html=True)
 
 # ── CONSTANTS ──────────────────────────────────────────────────────────────────
@@ -293,11 +318,11 @@ def nbtn(col, val, key, df_, label):
         drill(df_, label)
 
 def rag_cell(col, score):
-    col.markdown(f"<div style='font-size:16px;text-align:center;padding:3px 0;'>"
+    col.markdown(f"<div style='font-size:15px;text-align:center;padding:1px 0;'>"
                  f"{RAG[score]}</div>", unsafe_allow_html=True)
 
 def sep():
-    st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:1px 0;'>",
+    st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:0px 0;'>",
                 unsafe_allow_html=True)
 
 def tot_txt(col, val, color='#0F172A'):
@@ -493,8 +518,6 @@ for i, (label, val, cls, df_, lbl) in enumerate(kpi_defs):
                         f"<div class='kpi-v {cls}'>{val}</div></div>",
                         unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
-
 # ── DRILL BOX ──────────────────────────────────────────────────────────────────
 if st.session_state.drill_df is not None:
     show_drill()
@@ -502,9 +525,9 @@ if st.session_state.drill_df is not None:
                 unsafe_allow_html=True)
 else:
     st.markdown(
-        "<div style='background:#F1F5F9;border:1px dashed #CBD5E1;border-radius:8px;"
-        "padding:10px 16px;color:#64748B;font-size:13px;margin-bottom:10px;'>"
-        "👆 Click any number in the tables below or ▼ drill on a KPI card to see leads."
+        "<div style='background:#F1F5F9;border:1px dashed #CBD5E1;border-radius:6px;"
+        "padding:6px 14px;color:#64748B;font-size:12px;margin-bottom:4px;'>"
+        "👆 Click any number or ▼ drill on a KPI card to see leads behind it."
         "</div>", unsafe_allow_html=True)
 
 if total == 0:
@@ -808,6 +831,9 @@ st.download_button("⬇ Download Source Table",
                   columns=['Source','Total','Won','Open','Lost','Repeat','Win%']).to_csv(index=False),
     "source_performance.csv","text/csv",key="dl_t5")
 
+
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TABLE 6 — REP × SOURCE CONVERSION
 # ══════════════════════════════════════════════════════════════════════════════
@@ -861,7 +887,7 @@ def sty_t6(df):
             'background:#FEF2F2;color:#B91C1C;font-weight:700'))
             if isinstance(v,str) and '%' in v else '')
     if 'TOTAL' in df.index:
-        s.loc['TOTAL']='background:#0F2044;color:white;font-weight:800'
+        s.loc['TOTAL']='background:#0F2044;color:#FFFFFF;font-weight:800'
     return s
 
 st.dataframe(
@@ -869,7 +895,7 @@ st.dataframe(
        .apply(sty_t6,axis=None)
        .format(lambda x:'—' if isinstance(x,(int,float)) and x==0
                else(f'{x:,}' if isinstance(x,(int,float)) else x)),
-    use_container_width=True, height=460)
+    use_container_width=True, height=420)
 
 st.markdown("<p class='note'>Drill into any combination:</p>", unsafe_allow_html=True)
 d1,d2,d3,_,d5=st.columns([2,2,2,2,1.2])
