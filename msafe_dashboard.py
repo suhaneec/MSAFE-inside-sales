@@ -79,7 +79,11 @@ section[data-testid="stSidebar"] .stTextInput input::placeholder{color:#8BAFD4 !
     color:#0F172A !important;font-size:11px !important;
     font-weight:600 !important;background:#F1F5F9 !important;}
 button[data-testid="baseButton-secondary"]{
-    padding:2px 4px !important;font-size:12px !important;min-height:28px !important;}
+    padding:1px 4px !important;font-size:13px !important;min-height:24px !important;}
+.col-hdr{font-size:11px !important;}
+.grp-hdr-won{font-size:11px !important;}
+.grp-hdr-act{font-size:11px !important;}
+.grp-hdr-lost{font-size:11px !important;}
 </style>""", unsafe_allow_html=True)
 
 # ── CONSTANTS ──────────────────────────────────────────────────────────────────
@@ -271,10 +275,10 @@ def show_drill():
     if st.button("✕ Close", key="close_drill"):
         st.session_state.drill_df = None; st.rerun()
 
-def txt(col, val, bold=False, color='#0F172A', size='13px'):
+def txt(col, val, bold=False, color='#0F172A', size='14px'):
     fw = '700' if bold else '500'
     col.markdown(f"<div style='font-size:{size};font-weight:{fw};color:{color};"
-                 f"padding:4px 0;white-space:nowrap;overflow:hidden;"
+                 f"padding:2px 0;white-space:nowrap;overflow:hidden;"
                  f"text-overflow:ellipsis;'>{val}</div>", unsafe_allow_html=True)
 
 def hdr(col, label, cls='col-hdr', tip=''):
@@ -297,8 +301,8 @@ def sep():
                 unsafe_allow_html=True)
 
 def tot_txt(col, val, color='#0F172A'):
-    col.markdown(f"<div style='font-size:13px;font-weight:800;color:{color};"
-                 f"padding:4px 0;'>{val}</div>", unsafe_allow_html=True)
+    col.markdown(f"<div style='font-size:14px;font-weight:800;color:{color};"
+                 f"padding:2px 0;'>{val}</div>", unsafe_allow_html=True)
 
 def stages_present(df, order, stage_filter=None):
     sub = df[df['Stage']==stage_filter]['FollowupStatus'] if stage_filter else df['FollowupStatus']
@@ -661,52 +665,71 @@ tot_txt(tc2[5+len(q_stages)],f"{qt_conv}%",'#1D4ED8')
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='sec'>Table 3 — Quoted Leads Hygiene — Stale Quoted Deals</div>", unsafe_allow_html=True)
 st.markdown("<p class='note'>Only leads currently in a quoted stage. "
-            "Age = days since last followup. "
+            "Buckets = days since last followup action. "
+            "Note: KIT19 does not store the exact date a lead was first marked quoted — "
+            "days are counted from the most recent followup, which is ≥ when it was quoted. "
             "RAG: 🔴 &gt;60% stuck 7+ days  🟡 30–60%  🟢 &lt;30%</p>", unsafe_allow_html=True)
 
 qcur_base = base[base['FollowupStatus'].isin(QUOTED_S)].copy()
 qcur_base['bkt'] = qcur_base['fu_bkt'] if 'fu_bkt' in qcur_base.columns else '0–7 days'
+qcur_base['quoted_days'] = qcur_base['last_fu_age'] if 'last_fu_age' in qcur_base.columns else pd.NA
 
-W3=[W_RAG,1.8,0.9]+[0.8]*4
+# W3: RAG | Rep | Total Received | In Quoted | Avg Days (since last followup) | 4 buckets
+W3=[W_RAG, 1.8, 0.85, 0.85, 1.0] + [0.78]*4
 h3=st.columns(W3)
-hdr(h3[0],''); hdr(h3[1],'Rep'); hdr(h3[2],'In Quoted')
-for i,b in enumerate(BKTS): hdr(h3[3+i], b, tip=f"Days since last followup: {b}")
+hdr(h3[0],''); hdr(h3[1],'Rep')
+hdr(h3[2],'Total Received', tip='All leads assigned to this rep')
+hdr(h3[3],'In Quoted', tip='Currently in a quoted stage')
+hdr(h3[4],'Avg Days Since Last Followup', tip='KIT19 does not store when lead was first quoted — this is days since last followup action, which is at best equal to days since quoting')
+for i,b in enumerate(BKTS): hdr(h3[5+i], b, tip=f"Days since last followup: {b}")
 
 hyg3_rows=[]
 for rep in rep_order:
+    rd_all = base[base['Rep']==rep]
     rd=qcur_base[qcur_base['Rep']==rep]; n=len(rd)
     if n==0: continue
     old7=int((rd['bkt'].isin(['8–15 days','16–30 days','30+ days'])).sum())
     pct7=round(old7/n*100,1) if n else 0
-    hyg3_rows.append((rep,rd,n,pct7,rag_stale(pct7)))
-hyg3_rows.sort(key=lambda x:x[4])
+    avg_days = round(rd['quoted_days'].dropna().mean(), 1) if n else 0
+    hyg3_rows.append((rep, rd_all, rd, n, pct7, avg_days, rag_stale(pct7)))
+hyg3_rows.sort(key=lambda x:x[6])
 
-for rep,rd,n,pct7,rs in hyg3_rows:
+for rep, rd_all, rd, n, pct7, avg_days, rs in hyg3_rows:
     c=st.columns(W3); rag_cell(c[0],rs); txt(c[1],rep,True,'#0F2044')
-    nbtn(c[2],n,f"t3tot_{rep}",rd,f"All quoted — {rep}")
+    nbtn(c[2],len(rd_all),f"t3rcv_{rep}",rd_all,f"All received — {rep}")
+    nbtn(c[3],n,f"t3tot_{rep}",rd,f"All quoted — {rep}")
+    avg_c = '#B91C1C' if avg_days>15 else ('#92400E' if avg_days>7 else '#0A6640')
+    txt(c[4], f"{avg_days}d", bold=True, color=avg_c)
     for i,b in enumerate(BKTS):
-        bd=rd[rd['bkt']==b]; nbtn(c[3+i],len(bd),f"t3b_{rep}_{i}",bd,f"{b} — {rep}")
+        bd=rd[rd['bkt']==b]; nbtn(c[5+i],len(bd),f"t3b_{rep}_{i}",bd,f"{b} since last followup — {rep}")
 
 sep()
 tc3=st.columns(W3); tot_txt(tc3[0],''); tot_txt(tc3[1],'TOTAL')
-nbtn(tc3[2],len(qcur_base),'t3_gtot',qcur_base,"All in quoted stage")
+nbtn(tc3[2],len(base),'t3_gtot_rcv',base,"All leads")
+nbtn(tc3[3],len(qcur_base),'t3_gtot',qcur_base,"All in quoted stage")
+overall_avg = round(qcur_base['quoted_days'].dropna().mean(), 1) if len(qcur_base) else 0
+avg_c = '#B91C1C' if overall_avg>15 else ('#92400E' if overall_avg>7 else '#0A6640')
+txt(tc3[4], f"{overall_avg}d", bold=True, color=avg_c)
 for i,b in enumerate(BKTS):
-    bd=qcur_base[qcur_base['bkt']==b]; nbtn(tc3[3+i],len(bd),f"t3gb_{i}",bd,f"All quoted — {b}")
+    bd=qcur_base[qcur_base['bkt']==b]; nbtn(tc3[5+i],len(bd),f"t3gb_{i}",bd,f"All quoted — {b}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABLE 4 — ACTIVE PIPELINE AGING
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("<div class='sec'>Table 4 — Active Pipeline Aging</div>", unsafe_allow_html=True)
-st.markdown("<p class='note'>All Open leads. Age = days since last followup. "
+st.markdown("<p class='note'>All Open leads bucketed by <b>days since last followup</b>. "
             "RAG: 🔴 &gt;50% not touched in 7+ days  🟡 25–50%  🟢 &lt;25%</p>", unsafe_allow_html=True)
 
 act_base=base[base['Stage']=='Open'].copy()
 act_base['bkt'] = act_base['fu_bkt'] if 'fu_bkt' in act_base.columns else '0–7 days'
 
-W4=[W_RAG,1.8,0.9]+[0.85]*4
+# W4: RAG | Rep | Total Active | Avg days since fu | 4 buckets (days since last followup)
+W4=[W_RAG, 1.8, 0.9, 1.0] + [0.85]*4
 h4=st.columns(W4)
 hdr(h4[0],''); hdr(h4[1],'Rep'); hdr(h4[2],'Total Active')
-for i,b in enumerate(BKTS): hdr(h4[3+i],b,tip=f"Days since last followup: {b}")
+hdr(h4[3],'Avg Days Since Followup', tip='Average days since last followup across all open leads')
+for i,b in enumerate(BKTS):
+    hdr(h4[4+i], b, tip=f"Days since last followup: {b}")
 
 act4_rows=[]
 for rep in rep_order:
@@ -714,20 +737,26 @@ for rep in rep_order:
     if n==0: continue
     old7=int((rd['bkt'].isin(['8–15 days','16–30 days','30+ days'])).sum())
     pct7=round(old7/n*100,1) if n else 0
-    act4_rows.append((rep,rd,n,pct7,rag_active_age(pct7)))
-act4_rows.sort(key=lambda x:x[4])
+    avg_fu=round(rd['last_fu_age'].dropna().mean(),1) if 'last_fu_age' in rd.columns and n else 0
+    act4_rows.append((rep,rd,n,pct7,avg_fu,rag_active_age(pct7)))
+act4_rows.sort(key=lambda x:x[5])
 
-for rep,rd,n,pct7,rs in act4_rows:
+for rep,rd,n,pct7,avg_fu,rs in act4_rows:
     c=st.columns(W4); rag_cell(c[0],rs); txt(c[1],rep,True,'#0F2044')
     nbtn(c[2],n,f"t4tot_{rep}",rd,f"All active — {rep}")
+    avg_c='#B91C1C' if avg_fu>15 else ('#92400E' if avg_fu>7 else '#0A6640')
+    txt(c[3],f"{avg_fu}d",bold=True,color=avg_c)
     for i,b in enumerate(BKTS):
-        bd=rd[rd['bkt']==b]; nbtn(c[3+i],len(bd),f"t4b_{rep}_{i}",bd,f"{b} — {rep}")
+        bd=rd[rd['bkt']==b]; nbtn(c[4+i],len(bd),f"t4b_{rep}_{i}",bd,f"{b} since last followup — {rep}")
 
 sep()
 tc4=st.columns(W4); tot_txt(tc4[0],''); tot_txt(tc4[1],'TOTAL')
 nbtn(tc4[2],len(act_base),'t4_gtot',act_base,"All active leads")
+overall_act_avg=round(act_base['last_fu_age'].dropna().mean(),1) if 'last_fu_age' in act_base.columns and len(act_base) else 0
+avg_c='#B91C1C' if overall_act_avg>15 else ('#92400E' if overall_act_avg>7 else '#0A6640')
+txt(tc4[3],f"{overall_act_avg}d",bold=True,color=avg_c)
 for i,b in enumerate(BKTS):
-    bd=act_base[act_base['bkt']==b]; nbtn(tc4[3+i],len(bd),f"t4gb_{i}",bd,f"All active — {b}")
+    bd=act_base[act_base['bkt']==b]; nbtn(tc4[4+i],len(bd),f"t4gb_{i}",bd,f"All active — {b}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABLE 5 — SOURCE PERFORMANCE
