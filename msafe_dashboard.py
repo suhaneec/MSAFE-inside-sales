@@ -55,75 +55,91 @@ section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"] *{
     color:#0F172A !important;}
 
 /* ── KPI CARDS ── */
-.kpi{background:white;border-radius:8px;padding:10px 12px;text-align:center;
+.kpi{background:white;border-radius:10px;padding:14px 14px;text-align:center;
      box-shadow:0 2px 6px rgba(0,0,0,0.07);border-top:3px solid #CBD5E1;
-     display:flex;flex-direction:column;justify-content:center;cursor:pointer;}
+     display:flex;flex-direction:column;justify-content:center;cursor:pointer;min-height:64px;}
 .kpi:hover{box-shadow:0 4px 12px rgba(15,32,68,0.15);border-top-color:#0F2044;}
-.kpi-l{font-size:10px;color:#64748B !important;font-weight:700;text-transform:uppercase;
-       letter-spacing:.06em;margin-bottom:3px;}
-.kpi-v{font-size:20px;font-weight:800;color:#0F2044 !important;}
+.kpi-l{font-size:11.5px;color:#64748B !important;font-weight:700;text-transform:uppercase;
+       letter-spacing:.05em;margin-bottom:5px;}
+.kpi-v{font-size:25px;font-weight:800;color:#0F2044 !important;}
 .kpi-v.g{color:#0A6640 !important;}.kpi-v.r{color:#B91C1C !important;}
 .kpi-v.a{color:#92400E !important;}.kpi-v.b{color:#1D4ED8 !important;}
 
 /* ── DRILL BOX ── */
 .drill-box{background:#EEF2FF;border:1px solid #C7D2FE;border-left:4px solid #0F2044;
-           border-radius:0 8px 8px 0;padding:8px 14px;margin-bottom:8px;}
+           border-radius:0 8px 8px 0;padding:10px 16px;margin-bottom:10px;font-size:13px;}
 
 /* ── TABLE SECTION HEADERS ── */
-.sec{background:#0F2044;padding:6px 14px;border-radius:5px;
-     font-weight:700;font-size:12px;margin:6px 0 1px;}
+.sec{background:#0F2044;padding:9px 16px;border-radius:6px;
+     font-weight:700;font-size:14.5px;margin:18px 0 4px;letter-spacing:.01em;}
 /* Force white text inside .sec — overrides the global dark color rule */
 .sec, .sec *{color:white !important;}
 
 /* ── TABLE NOTES ── */
-.note{font-size:10px;color:#64748B;font-style:italic;margin:0 0 3px;}
+.note{font-size:12px;color:#64748B;font-style:italic;margin:0 0 8px;line-height:1.5;}
 
 /* ── TABLE COLUMN HEADERS ── */
-.col-hdr{font-size:11px;font-weight:700;color:#475569;
-         border-bottom:2px solid #0F2044;padding-bottom:1px;margin-bottom:1px;
-         overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
-.grp-hdr-won{font-size:11px;font-weight:800;color:#0A6640;
-             border-bottom:3px solid #0A6640;padding-bottom:1px;margin-bottom:1px;}
-.grp-hdr-act{font-size:11px;font-weight:800;color:#92400E;
-             border-bottom:3px solid #F59E0B;padding-bottom:1px;margin-bottom:1px;}
-.grp-hdr-lost{font-size:11px;font-weight:800;color:#B91C1C;
-              border-bottom:3px solid #B91C1C;padding-bottom:1px;margin-bottom:1px;}
+.col-hdr{font-size:12.5px;font-weight:700;color:#475569;
+         border-bottom:2px solid #0F2044;padding:0 0 5px 0;margin-bottom:5px;
+         overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+         min-height:22px;display:flex;align-items:flex-end;}
+.grp-hdr-won{font-size:12.5px;font-weight:800;color:#0A6640;
+             border-bottom:3px solid #0A6640;padding:0 0 5px 0;margin-bottom:5px;
+             min-height:22px;display:flex;align-items:flex-end;justify-content:center;text-align:center;}
+.grp-hdr-act{font-size:12.5px;font-weight:800;color:#92400E;
+             border-bottom:3px solid #F59E0B;padding:0 0 5px 0;margin-bottom:5px;
+             min-height:22px;display:flex;align-items:flex-end;justify-content:center;text-align:center;}
+.grp-hdr-lost{font-size:12.5px;font-weight:800;color:#B91C1C;
+              border-bottom:3px solid #B91C1C;padding:0 0 5px 0;margin-bottom:5px;
+              min-height:22px;display:flex;align-items:flex-end;justify-content:center;text-align:center;}
+
+/* ── ROTATED SUB-STAGE HEADERS — full name always visible, no truncation ── */
+.sub-hdr{font-size:11.5px;font-weight:700;color:#475569;
+         writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;
+         height:132px;display:flex;align-items:flex-end;justify-content:center;
+         padding-bottom:6px;margin-bottom:5px;border-bottom:2px solid #CBD5E1;}
+.sub-hdr-won{border-bottom:3px solid #0A6640;color:#0A6640;}
+.sub-hdr-act{border-bottom:3px solid #F59E0B;color:#92400E;}
+.sub-hdr-lost{border-bottom:3px solid #B91C1C;color:#B91C1C;}
+.amt-hdr{font-size:12.5px;font-weight:800;color:#1D4ED8;
+         border-bottom:3px solid #1D4ED8;padding:0 0 5px 0;margin-bottom:5px;
+         min-height:22px;display:flex;align-items:flex-end;justify-content:center;text-align:center;}
 
 /* ── DATAFRAME ── */
 [data-testid="stDataFrame"] th,[data-testid="stDataFrame"] [role="columnheader"],
 [data-testid="stDataFrame"] [role="columnheader"]*{
     background:#1B3A6B !important;color:white !important;
-    font-size:11px !important;font-weight:700 !important;}
+    font-size:12.5px !important;font-weight:700 !important;}
 [data-testid="stDataFrame"] td,[data-testid="stDataFrame"] [role="gridcell"],
-[data-testid="stDataFrame"] [role="gridcell"]*{color:#0F172A !important;font-size:11px !important;}
+[data-testid="stDataFrame"] [role="gridcell"]*{color:#0F172A !important;font-size:12.5px !important;}
 [data-testid="stDataFrame"] [role="rowheader"],[data-testid="stDataFrame"] [role="rowheader"]*{
-    color:#0F172A !important;font-size:11px !important;
+    color:#0F172A !important;font-size:12.5px !important;
     font-weight:600 !important;background:#F1F5F9 !important;}
 
 /* ── TABLE BUTTONS (numbers) ── */
 button[data-testid="baseButton-secondary"]{
-    padding:0px 3px !important;font-size:13px !important;min-height:22px !important;
-    line-height:1.2 !important;}
+    padding:1px 4px !important;font-size:13.5px !important;min-height:26px !important;
+    line-height:1.3 !important;}
 
-/* ── REDUCE BLOCK SPACING — aggressive compact ── */
-.block-container{padding-top:0.3rem !important;padding-bottom:0.3rem !important;
-    padding-left:1rem !important;padding-right:1rem !important;}
+/* ── BLOCK SPACING — compact but breathable ── */
+.block-container{padding-top:0.6rem !important;padding-bottom:1rem !important;
+    padding-left:1.2rem !important;padding-right:1.2rem !important;}
 div[data-testid="stVerticalBlock"]{gap:0px !important;}
 div[data-testid="stVerticalBlockBorderWrapper"]{padding:0px !important;}
-div[data-testid="column"]{padding:0px 2px !important;}
+div[data-testid="column"]{padding:0px 4px !important;}
 /* Kill gap between ALL stacked elements */
 div[data-testid="stVerticalBlock"] > div{gap:0px !important;margin:0px !important;}
 /* Streamlit default element containers */
 div.element-container{margin:0px !important;padding:0px !important;}
 div[data-testid="stMarkdownContainer"]{margin:0px !important;padding:0px !important;}
 /* Button containers */
-div[data-testid="stButton"]{margin:0px !important;padding:0px !important;}
+div[data-testid="stButton"]{margin:0px !important;padding:1px 0 !important;}
 /* Kill the gap Streamlit adds between columns */
-div[data-testid="stHorizontalBlock"]{gap:4px !important;margin:0px !important;}
+div[data-testid="stHorizontalBlock"]{gap:6px !important;margin:0px !important;}
 /* KPI drill button — make it tiny and flush */
 div.stButton > button[data-testid="baseButton-secondary"]{
-    margin-top:1px !important;margin-bottom:0px !important;
-    height:20px !important;font-size:11px !important;}
+    margin-top:2px !important;margin-bottom:0px !important;
+    height:22px !important;font-size:11.5px !important;}
 </style>""", unsafe_allow_html=True)
 
 # ── CONSTANTS ──────────────────────────────────────────────────────────────────
@@ -170,7 +186,7 @@ LCOLS    = {'LeadNo':'Lead #','PersonName':'Customer','CompanyName':'Company',
             'City':'City','Source':'Source','Category':'Category','Rep':'Rep',
             'FollowupStatus':'Status','Stage':'Stage','CreatedOn':'Created',
             'age_days':'Lead Age (days)','last_fu_age':'Days Since Followup',
-            'LastFollowupedOn':'Last Contact','Remarks':'Remarks'}
+            'LastFollowupedOn':'Last Contact','AmountPaid':'Amount Paid','Remarks':'Remarks'}
 
 # Aging buckets — FIXED clear boundaries
 BKTS = ['0–7 days','8–15 days','16–30 days','30+ days']
@@ -294,6 +310,8 @@ def prep_leads(df):
     for dc in ['Lead Age (days)', 'Days Since Followup']:
         if dc in out.columns:
             out[dc] = pd.to_numeric(out[dc], errors='coerce').astype('Int64')
+    if 'Amount Paid' in out.columns:
+        out['Amount Paid'] = pd.to_numeric(out['Amount Paid'], errors='coerce').fillna(0).apply(fmt_amt)
     return out
 
 def show_drill():
@@ -315,10 +333,23 @@ def show_drill():
     if st.button("✕ Close", key="close_drill"):
         st.session_state.drill_df = None; st.rerun()
 
-def txt(col, val, bold=False, color='#0F172A', size='14px'):
+def fmt_amt(v):
+    """Format a rupee amount compactly: ₹85K, ₹12.4L, ₹3.2Cr."""
+    if v is None or pd.isna(v) or v == 0:
+        return '—'
+    v = float(v)
+    sign = '-' if v < 0 else ''
+    v = abs(v)
+    if v >= 1e7:  s = f"₹{v/1e7:.2f}Cr"
+    elif v >= 1e5: s = f"₹{v/1e5:.2f}L"
+    elif v >= 1e3: s = f"₹{v/1e3:.1f}K"
+    else: s = f"₹{v:,.0f}"
+    return sign + s
+
+def txt(col, val, bold=False, color='#0F172A', size='15px'):
     fw = '700' if bold else '500'
     col.markdown(f"<div style='font-size:{size};font-weight:{fw};color:{color};"
-                 f"padding:2px 0;white-space:nowrap;overflow:hidden;"
+                 f"padding:3px 0;white-space:nowrap;overflow:hidden;"
                  f"text-overflow:ellipsis;'>{val}</div>", unsafe_allow_html=True)
 
 def hdr(col, label, cls='col-hdr', tip=''):
@@ -327,22 +358,30 @@ def hdr(col, label, cls='col-hdr', tip=''):
 
 def nbtn(col, val, key, df_, label):
     if val == 0:
-        col.markdown("<div style='font-size:12px;color:#CBD5E1;padding:4px 0;'>—</div>",
+        col.markdown("<div style='font-size:13px;color:#CBD5E1;padding:5px 0;'>—</div>",
                      unsafe_allow_html=True)
     elif col.button(f"{val:,}", key=key, help=label):
         drill(df_, label)
 
+def abtn(col, amt, key, df_, label):
+    """Amount button — shows a formatted ₹ sum, click to drill into the underlying leads."""
+    if amt is None or pd.isna(amt) or amt == 0:
+        col.markdown("<div style='font-size:13px;color:#CBD5E1;padding:5px 0;'>—</div>",
+                     unsafe_allow_html=True)
+    elif col.button(fmt_amt(amt), key=key, help=label):
+        drill(df_, label)
+
 def rag_cell(col, score):
-    col.markdown(f"<div style='font-size:15px;text-align:center;padding:1px 0;'>"
+    col.markdown(f"<div style='font-size:17px;text-align:center;padding:2px 0;'>"
                  f"{RAG[score]}</div>", unsafe_allow_html=True)
 
 def sep():
-    st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:0;padding:0;'>",
+    st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:6px 0;'>",
                 unsafe_allow_html=True)
 
 def tot_txt(col, val, color='#0F172A'):
-    col.markdown(f"<div style='font-size:14px;font-weight:800;color:{color};"
-                 f"padding:2px 0;'>{val}</div>", unsafe_allow_html=True)
+    col.markdown(f"<div style='font-size:15px;font-weight:800;color:{color};"
+                 f"padding:3px 0;'>{val}</div>", unsafe_allow_html=True)
 
 def stages_present(df, order, stage_filter=None):
     sub = df[df['Stage']==stage_filter]['FollowupStatus'] if stage_filter else df['FollowupStatus']
@@ -464,6 +503,7 @@ if 'age_days' in base.columns:
     base['age_bkt'] = base['age_days'].apply(age_bkt)
 
 # ── AGGREGATES ─────────────────────────────────────────────────────────────────
+HAS_AMT = 'AmountPaid' in base.columns
 total   = len(base)
 won     = int((base['Stage']=='Won').sum())
 lost    = int((base['Stage']=='Lost').sum())
@@ -563,7 +603,7 @@ if tc2.button(f"{'▼' if st.session_state.exp_act  else '▶'} Active ({len(act
 if tc3.button(f"{'▼' if st.session_state.exp_lost else '▶'} Lost ({len(lost_stages)} stages)", key='tog_lost'):
     st.session_state.exp_lost = not st.session_state.exp_lost; st.rerun()
 
-W_RAG,W_REP,W_TOT,W_GRP,W_SUB,W_WIN = 0.35,1.8,0.7,0.75,0.58,0.65
+W_RAG,W_REP,W_TOT,W_GRP,W_SUB,W_WIN,W_AMT = 0.35,1.9,0.75,0.8,0.62,0.7,0.95
 widths = [W_RAG, W_REP, W_TOT, W_GRP]
 if st.session_state.exp_won:  widths += [W_SUB]*len(won_stages)
 widths += [W_GRP]
@@ -571,6 +611,7 @@ if st.session_state.exp_act:  widths += [W_SUB]*len(act_stages)
 widths += [W_GRP]
 if st.session_state.exp_lost: widths += [W_SUB]*len(lost_stages)
 widths += [W_WIN]
+if HAS_AMT: widths += [W_AMT]
 
 hcols = st.columns(widths)
 hdr(hcols[0],''); hdr(hcols[1],'Rep'); hdr(hcols[2],'Total')
@@ -578,16 +619,17 @@ ci = 3
 hdr(hcols[ci],'Won','grp-hdr-won'); ci+=1
 if st.session_state.exp_won:
     for s in won_stages:
-        hdr(hcols[ci], s[:14]+'…' if len(s)>14 else s, 'grp-hdr-won', tip=s); ci+=1
+        hdr(hcols[ci], s, 'sub-hdr sub-hdr-won'); ci+=1
 hdr(hcols[ci],'Active','grp-hdr-act'); ci+=1
 if st.session_state.exp_act:
     for s in act_stages:
-        hdr(hcols[ci], s[:14]+'…' if len(s)>14 else s, 'grp-hdr-act', tip=s); ci+=1
+        hdr(hcols[ci], s, 'sub-hdr sub-hdr-act'); ci+=1
 hdr(hcols[ci],'Lost','grp-hdr-lost'); ci+=1
 if st.session_state.exp_lost:
     for s in lost_stages:
-        hdr(hcols[ci], s[:14]+'…' if len(s)>14 else s, 'grp-hdr-lost', tip=s); ci+=1
-hdr(hcols[ci],'Win %')
+        hdr(hcols[ci], s, 'sub-hdr sub-hdr-lost'); ci+=1
+hdr(hcols[ci],'Win %'); ci+=1
+if HAS_AMT: hdr(hcols[ci],'Amount Won','amt-hdr')
 
 for rep in rep_sorted:
     rd  = base[base['Rep']==rep]
@@ -617,7 +659,10 @@ for rep in rep_sorted:
         for i,s in enumerate(lost_stages):
             sd = rd[rd['FollowupStatus']==s]
             nbtn(c[ci], len(sd), f"t1ls_{rep}_{i}", sd, f"{s} — {rep}"); ci+=1
-    txt(c[ci], f"{wp}%", bold=True, color=wpc)
+    txt(c[ci], f"{wp}%", bold=True, color=wpc); ci+=1
+    if HAS_AMT:
+        amt_won = rw['AmountPaid'].sum()
+        abtn(c[ci], amt_won, f"t1amt_{rep}", rw, f"Won (with amount) — {rep}")
 
 sep()
 tc = st.columns(widths)
@@ -638,7 +683,10 @@ if st.session_state.exp_lost:
     for i,s in enumerate(lost_stages):
         sd = base[base['FollowupStatus']==s]
         nbtn(tc[ci], len(sd), f"t1gls_{i}", sd, f"All — {s}"); ci+=1
-tot_txt(tc[ci], f"{wr}%", color='#1D4ED8')
+tot_txt(tc[ci], f"{wr}%", color='#1D4ED8'); ci+=1
+if HAS_AMT:
+    won_all = base[base['Stage']=='Won']
+    abtn(tc[ci], won_all['AmountPaid'].sum(), "t1_gamt", won_all, "All won (with amount)")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABLE 2 — QUOTATION ANALYSIS
@@ -649,13 +697,15 @@ st.markdown("<p class='note'>All leads that reached any quoted stage. "
 
 ALL_Q_S  = QUOTED_S + WON_S + ['Quoted Order Lost']
 q_stages = [s for s in QUOTED_S if s in base['FollowupStatus'].values]
-W2 = [W_RAG, 1.8, 0.8] + [W_SUB]*len(q_stages) + [0.8, 0.8, 0.7]
+W2 = [W_RAG, 1.9, 0.85] + [W_SUB]*len(q_stages) + [0.85, 0.85, 0.75]
+if HAS_AMT: W2 += [W_AMT]
 h2 = st.columns(W2)
 hdr(h2[0],''); hdr(h2[1],'Rep'); hdr(h2[2],'Total Quoted')
-for i,s in enumerate(q_stages): hdr(h2[3+i], s[:14]+'…' if len(s)>14 else s, tip=s)
-hdr(h2[3+len(q_stages)], 'Won from\nQuote')
-hdr(h2[4+len(q_stages)], 'Lost from\nQuote')
+for i,s in enumerate(q_stages): hdr(h2[3+i], s, 'sub-hdr')
+hdr(h2[3+len(q_stages)], 'Won from Quote', 'grp-hdr-won')
+hdr(h2[4+len(q_stages)], 'Lost from Quote', 'grp-hdr-lost')
 hdr(h2[5+len(q_stages)], 'Quote→Win %')
+if HAS_AMT: hdr(h2[6+len(q_stages)], 'Amount Won', 'amt-hdr')
 
 qt_rows = []
 for rep in rep_order:
@@ -683,6 +733,8 @@ for rep,rd,qa,qcur,qw,ql,nqa,nqw,nql,qconv,rs in qt_rows:
     nbtn(c[3+len(q_stages)], nqw, f"t2qw_{rep}", qw, f"Won from quote — {rep}")
     nbtn(c[4+len(q_stages)], nql, f"t2ql_{rep}", ql, f"Lost from quote — {rep}")
     txt(c[5+len(q_stages)], f"{qconv}%", True, wpc)
+    if HAS_AMT:
+        abtn(c[6+len(q_stages)], qw['AmountPaid'].sum(), f"t2amt_{rep}", qw, f"Won from quote (with amount) — {rep}")
 
 sep()
 qcur_all=base[base['FollowupStatus'].isin(QUOTED_S)]; qw_all=base[base['FollowupStatus'].isin(WON_S)]
@@ -696,6 +748,8 @@ for i,s in enumerate(q_stages):
 nbtn(tc2[3+len(q_stages)],len(qw_all),'t2_gw',qw_all,"All won from quote")
 nbtn(tc2[4+len(q_stages)],len(ql_all),'t2_gl',ql_all,"All lost from quote")
 tot_txt(tc2[5+len(q_stages)],f"{qt_conv}%",'#1D4ED8')
+if HAS_AMT:
+    abtn(tc2[6+len(q_stages)], qw_all['AmountPaid'].sum(), 't2_gamt', qw_all, "All won from quote (with amount)")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TABLE 3 — QUOTED LEADS HYGIENE
