@@ -106,11 +106,53 @@ section[data-testid="stSidebar"] button[data-testid="baseButton-secondary"] *{
          min-height:24px;display:flex;align-items:flex-end;justify-content:center;text-align:center;}
 
 /* ── RAG PILLS (used for Win% / conversion cells) ── */
-.pill{display:inline-block;font-size:16px;font-weight:800;border-radius:6px;
-      padding:4px 10px;line-height:1.3;}
-.pill-g{background:#E9F7EF;color:#0A6640 !important;}
-.pill-a{background:#FFFBEB;color:#92400E !important;}
-.pill-r{background:#FEF2F2;color:#B91C1C !important;}
+.pill{display:inline-block;font-size:17px;font-weight:800;border-radius:8px;
+      padding:6px 12px;line-height:1.3;border:1.5px solid transparent;}
+.pill-g{background:#E9F7EF;color:#0A6640 !important;border-color:#86D6AE;}
+.pill-a{background:#FFFBEB;color:#92400E !important;border-color:#FBD38D;}
+.pill-r{background:#FEF2F2;color:#B91C1C !important;border-color:#FCA5A5;}
+
+/* ── RAG BADGE (leftmost traffic-light column) ── */
+.rag-badge{display:inline-flex;align-items:center;justify-content:center;
+    width:30px;height:30px;border-radius:8px;font-size:16px;margin:0 auto;}
+.rag-badge-0{background:#FEF2F2;border:1.5px solid #FCA5A5;}
+.rag-badge-1{background:#FFFBEB;border:1.5px solid #FBD38D;}
+.rag-badge-2{background:#E9F7EF;border:1.5px solid #86D6AE;}
+
+/* ── COLORED VALUE BOXES (pivot number cells) ──
+   A zero-height marker div is placed immediately before the st.button;
+   CSS uses the adjacent-sibling combinator to skin that button. ── */
+.box-mark{height:0;margin:0;padding:0;line-height:0;font-size:0;}
+.box-mark-won + div[data-testid="stButton"] button{
+    background:#E9F7EF !important;color:#0A6640 !important;
+    border:1.5px solid #86D6AE !important;font-weight:800 !important;
+    font-size:16px !important;border-radius:8px !important;}
+.box-mark-act + div[data-testid="stButton"] button{
+    background:#FFFBEB !important;color:#92400E !important;
+    border:1.5px solid #FBD38D !important;font-weight:800 !important;
+    font-size:16px !important;border-radius:8px !important;}
+.box-mark-lost + div[data-testid="stButton"] button{
+    background:#FEF2F2 !important;color:#B91C1C !important;
+    border:1.5px solid #FCA5A5 !important;font-weight:800 !important;
+    font-size:16px !important;border-radius:8px !important;}
+.box-mark-neutral + div[data-testid="stButton"] button{
+    background:#F1F5F9 !important;color:#0F2044 !important;
+    border:1.5px solid #CBD5E1 !important;font-weight:800 !important;
+    font-size:16px !important;border-radius:8px !important;}
+.box-mark-amt + div[data-testid="stButton"] button{
+    background:#EFF6FF !important;color:#1D4ED8 !important;
+    border:1.5px solid #93C5FD !important;font-weight:800 !important;
+    font-size:16px !important;border-radius:8px !important;}
+.box-mark-won + div[data-testid="stButton"] button:hover{border-color:#0A6640 !important;}
+.box-mark-act + div[data-testid="stButton"] button:hover{border-color:#92400E !important;}
+.box-mark-lost + div[data-testid="stButton"] button:hover{border-color:#B91C1C !important;}
+.box-mark-neutral + div[data-testid="stButton"] button:hover{border-color:#0F2044 !important;}
+.box-mark-amt + div[data-testid="stButton"] button:hover{border-color:#1D4ED8 !important;}
+
+/* ── EMPTY / ZERO CELL BOX — keeps grid alignment when there's no button ── */
+.empty-box{display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:700;color:#CBD5E1 !important;background:#F8FAFC;
+    border:1.5px dashed #E2E8F0;border-radius:8px;padding:5px 0;min-height:30px;}
 
 /* ── DATAFRAME ── */
 [data-testid="stDataFrame"] th,[data-testid="stDataFrame"] [role="columnheader"],
@@ -191,6 +233,7 @@ LCOLS    = {'LeadNo':'Lead #','PersonName':'Customer','CompanyName':'Company',
             'LastFollowupedOn':'Last Contact','AmountPaid':'Amount Paid','Remarks':'Remarks'}
 
 BKTS = ['0–7 days','8–15 days','16–30 days','30+ days']
+BKT_KIND = ['won','act','act','lost']   # box color per aging bucket, freshest→stalest
 
 def age_bkt(d):
     if pd.isna(d) or d < 0: return '0–7 days'
@@ -363,23 +406,27 @@ def hdr(col, label, cls='col-hdr', tip=''):
     t = f" title='{tip}'" if tip else ''
     col.markdown(f"<div class='{cls}'{t}>{label}</div>", unsafe_allow_html=True)
 
-def nbtn(col, val, key, df_, label):
+def nbtn(col, val, key, df_, label, kind='neutral'):
+    """Number cell rendered as a colored box (kind: won/act/lost/neutral) that drills on click."""
     if val == 0:
-        col.markdown("<div style='font-size:14px;color:#CBD5E1;padding:6px 0;'>—</div>",
-                     unsafe_allow_html=True)
-    elif col.button(f"{val:,}", key=key, help=label):
+        col.markdown("<div class='empty-box'>—</div>", unsafe_allow_html=True)
+        return
+    col.markdown(f"<div class='box-mark box-mark-{kind}'></div>", unsafe_allow_html=True)
+    if col.button(f"{val:,}", key=key, help=label, use_container_width=True):
         drill(df_, label)
 
-def abtn(col, amt, key, df_, label):
+def abtn(col, amt, key, df_, label, kind='amt'):
+    """Amount cell rendered as a colored box (defaults to blue 'amt' styling)."""
     if amt is None or pd.isna(amt) or amt == 0:
-        col.markdown("<div style='font-size:14px;color:#CBD5E1;padding:6px 0;'>—</div>",
-                     unsafe_allow_html=True)
-    elif col.button(fmt_amt(amt), key=key, help=label):
+        col.markdown("<div class='empty-box'>—</div>", unsafe_allow_html=True)
+        return
+    col.markdown(f"<div class='box-mark box-mark-{kind}'></div>", unsafe_allow_html=True)
+    if col.button(fmt_amt(amt), key=key, help=label, use_container_width=True):
         drill(df_, label)
 
 def rag_cell(col, score):
-    col.markdown(f"<div style='font-size:22px;text-align:center;padding:2px 0;'>"
-                 f"{RAG[score]}</div>", unsafe_allow_html=True)
+    col.markdown(f"<div class='rag-badge rag-badge-{score}'>{RAG[score]}</div>",
+                 unsafe_allow_html=True)
 
 def sep():
     st.markdown("<hr style='border:none;border-top:1px solid #E2E8F0;margin:8px 0;'>",
@@ -680,23 +727,23 @@ with tab_over:
         c   = st.columns(widths)
         rag_cell(c[0], rs)
         txt(c[1], rep, bold=True, color='#0F2044')
-        nbtn(c[2], len(rd), f"t1tot_{rep}", rd, f"All leads — {rep}")
+        nbtn(c[2], len(rd), f"t1tot_{rep}", rd, f"All leads — {rep}", kind='neutral')
         ci = 3
-        nbtn(c[ci], len(rw), f"t1w_{rep}", rw, f"Won — {rep}"); ci+=1
+        nbtn(c[ci], len(rw), f"t1w_{rep}", rw, f"Won — {rep}", kind='won'); ci+=1
         if st.session_state.exp_won:
             for i,s in enumerate(won_stages):
                 sd = rd[rd['FollowupStatus']==s]
-                nbtn(c[ci], len(sd), f"t1ws_{rep}_{i}", sd, f"{s} — {rep}"); ci+=1
-        nbtn(c[ci], len(ro), f"t1a_{rep}", ro, f"Active — {rep}"); ci+=1
+                nbtn(c[ci], len(sd), f"t1ws_{rep}_{i}", sd, f"{s} — {rep}", kind='won'); ci+=1
+        nbtn(c[ci], len(ro), f"t1a_{rep}", ro, f"Active — {rep}", kind='act'); ci+=1
         if st.session_state.exp_act:
             for i,s in enumerate(act_stages):
                 sd = rd[rd['FollowupStatus']==s]
-                nbtn(c[ci], len(sd), f"t1as_{rep}_{i}", sd, f"{s} — {rep}"); ci+=1
-        nbtn(c[ci], len(rl), f"t1l_{rep}", rl, f"Lost — {rep}"); ci+=1
+                nbtn(c[ci], len(sd), f"t1as_{rep}_{i}", sd, f"{s} — {rep}", kind='act'); ci+=1
+        nbtn(c[ci], len(rl), f"t1l_{rep}", rl, f"Lost — {rep}", kind='lost'); ci+=1
         if st.session_state.exp_lost:
             for i,s in enumerate(lost_stages):
                 sd = rd[rd['FollowupStatus']==s]
-                nbtn(c[ci], len(sd), f"t1ls_{rep}_{i}", sd, f"{s} — {rep}"); ci+=1
+                nbtn(c[ci], len(sd), f"t1ls_{rep}_{i}", sd, f"{s} — {rep}", kind='lost'); ci+=1
         pill_txt(c[ci], f"{wp}%", rs); ci+=1
         if HAS_AMT:
             amt_won = rw['AmountPaid'].sum()
@@ -705,22 +752,22 @@ with tab_over:
     sep()
     tc = st.columns(widths)
     tot_txt(tc[0],''); tot_txt(tc[1],'TOTAL')
-    nbtn(tc[2], total, "t1_gtot", base, "All leads"); ci=3
-    nbtn(tc[ci], won, "t1_gwon", base[base['Stage']=='Won'], "All won leads"); ci+=1
+    nbtn(tc[2], total, "t1_gtot", base, "All leads", kind='neutral'); ci=3
+    nbtn(tc[ci], won, "t1_gwon", base[base['Stage']=='Won'], "All won leads", kind='won'); ci+=1
     if st.session_state.exp_won:
         for i,s in enumerate(won_stages):
             sd = base[base['FollowupStatus']==s]
-            nbtn(tc[ci], len(sd), f"t1gws_{i}", sd, f"All — {s}"); ci+=1
-    nbtn(tc[ci], opn, "t1_gact", base[base['Stage']=='Open'], "All active leads"); ci+=1
+            nbtn(tc[ci], len(sd), f"t1gws_{i}", sd, f"All — {s}", kind='won'); ci+=1
+    nbtn(tc[ci], opn, "t1_gact", base[base['Stage']=='Open'], "All active leads", kind='act'); ci+=1
     if st.session_state.exp_act:
         for i,s in enumerate(act_stages):
             sd = base[base['FollowupStatus']==s]
-            nbtn(tc[ci], len(sd), f"t1gas_{i}", sd, f"All — {s}"); ci+=1
-    nbtn(tc[ci], lost, "t1_glost", base[base['Stage']=='Lost'], "All lost leads"); ci+=1
+            nbtn(tc[ci], len(sd), f"t1gas_{i}", sd, f"All — {s}", kind='act'); ci+=1
+    nbtn(tc[ci], lost, "t1_glost", base[base['Stage']=='Lost'], "All lost leads", kind='lost'); ci+=1
     if st.session_state.exp_lost:
         for i,s in enumerate(lost_stages):
             sd = base[base['FollowupStatus']==s]
-            nbtn(tc[ci], len(sd), f"t1gls_{i}", sd, f"All — {s}"); ci+=1
+            nbtn(tc[ci], len(sd), f"t1gls_{i}", sd, f"All — {s}", kind='lost'); ci+=1
     pill_txt(tc[ci], f"{wr}%", rag_win(wr)); ci+=1
     if HAS_AMT:
         won_all = base[base['Stage']=='Won']
@@ -759,12 +806,12 @@ with tab_over:
         if nqa == 0: continue
         c   = st.columns(W2)
         rag_cell(c[0], rs); txt(c[1], rep, True, '#0F2044')
-        nbtn(c[2], nqa, f"t2qa_{rep}", qa, f"All quoted — {rep}")
+        nbtn(c[2], nqa, f"t2qa_{rep}", qa, f"All quoted — {rep}", kind='neutral')
         for i,s in enumerate(q_stages):
             sd = rd[rd['FollowupStatus']==s]
-            nbtn(c[3+i], len(sd), f"t2qs_{rep}_{i}", sd, f"{s} — {rep}")
-        nbtn(c[3+len(q_stages)], nqw, f"t2qw_{rep}", qw, f"Won from quote — {rep}")
-        nbtn(c[4+len(q_stages)], nql, f"t2ql_{rep}", ql, f"Lost from quote — {rep}")
+            nbtn(c[3+i], len(sd), f"t2qs_{rep}_{i}", sd, f"{s} — {rep}", kind='act')
+        nbtn(c[3+len(q_stages)], nqw, f"t2qw_{rep}", qw, f"Won from quote — {rep}", kind='won')
+        nbtn(c[4+len(q_stages)], nql, f"t2ql_{rep}", ql, f"Lost from quote — {rep}", kind='lost')
         pill_txt(c[5+len(q_stages)], f"{qconv}%", rs)
         if HAS_AMT:
             abtn(c[6+len(q_stages)], qw['AmountPaid'].sum(), f"t2amt_{rep}", qw, f"Won from quote (with amount) — {rep}")
@@ -773,11 +820,11 @@ with tab_over:
     gt_nqa=len(qcur_all)+len(qw_all)+len(ql_all)
     qt_conv=round(len(qw_all)/(len(qw_all)+len(ql_all))*100,1) if (len(qw_all)+len(ql_all))>0 else 0
     tc2=st.columns(W2); tot_txt(tc2[0],''); tot_txt(tc2[1],'TOTAL')
-    nbtn(tc2[2],gt_nqa,'t2_gtot',qa_all,"All quoted leads")
+    nbtn(tc2[2],gt_nqa,'t2_gtot',qa_all,"All quoted leads", kind='neutral')
     for i,s in enumerate(q_stages):
-        nbtn(tc2[3+i],len(base[base['FollowupStatus']==s]),f"t2gs_{i}",base[base['FollowupStatus']==s],f"All — {s}")
-    nbtn(tc2[3+len(q_stages)],len(qw_all),'t2_gw',qw_all,"All won from quote")
-    nbtn(tc2[4+len(q_stages)],len(ql_all),'t2_gl',ql_all,"All lost from quote")
+        nbtn(tc2[3+i],len(base[base['FollowupStatus']==s]),f"t2gs_{i}",base[base['FollowupStatus']==s],f"All — {s}", kind='act')
+    nbtn(tc2[3+len(q_stages)],len(qw_all),'t2_gw',qw_all,"All won from quote", kind='won')
+    nbtn(tc2[4+len(q_stages)],len(ql_all),'t2_gl',ql_all,"All lost from quote", kind='lost')
     pill_txt(tc2[5+len(q_stages)], f"{qt_conv}%", rag_quote_conv(qt_conv))
     if HAS_AMT:
         abtn(tc2[6+len(q_stages)], qw_all['AmountPaid'].sum(), 't2_gamt', qw_all, "All won from quote (with amount)")
@@ -822,10 +869,10 @@ with tab_rep:
         rd = base[base['Rep']==row['Rep']]
         c = st.columns(WR)
         rag_cell(c[0], row['RAG']); txt(c[1], row['Rep'], True, '#0F2044')
-        nbtn(c[2], row['Total'], f"trep_tot_{row['Rep']}", rd, f"All — {row['Rep']}")
-        nbtn(c[3], row['Won'], f"trep_won_{row['Rep']}", rd[rd['Stage']=='Won'], f"Won — {row['Rep']}")
-        nbtn(c[4], row['Open'], f"trep_opn_{row['Rep']}", rd[rd['Stage']=='Open'], f"Open — {row['Rep']}")
-        nbtn(c[5], row['Lost'], f"trep_lst_{row['Rep']}", rd[rd['Stage']=='Lost'], f"Lost — {row['Rep']}")
+        nbtn(c[2], row['Total'], f"trep_tot_{row['Rep']}", rd, f"All — {row['Rep']}", kind='neutral')
+        nbtn(c[3], row['Won'], f"trep_won_{row['Rep']}", rd[rd['Stage']=='Won'], f"Won — {row['Rep']}", kind='won')
+        nbtn(c[4], row['Open'], f"trep_opn_{row['Rep']}", rd[rd['Stage']=='Open'], f"Open — {row['Rep']}", kind='act')
+        nbtn(c[5], row['Lost'], f"trep_lst_{row['Rep']}", rd[rd['Stage']=='Lost'], f"Lost — {row['Rep']}", kind='lost')
         pill_txt(c[6], f"{row['Win%']}%", row['RAG'])
         abtn(c[7], row['AmountWon'], f"trep_amt_{row['Rep']}", rd[rd['Stage']=='Won'], f"Won (amount) — {row['Rep']}")
     st.download_button("⬇ Download Rep Summary", rep_summary_df.drop(columns='RAG').to_csv(index=False),
@@ -942,11 +989,11 @@ with tab_src:
     for _, row in src_summary_df.iterrows():
         sd = base[base['Source']==row['Source']]
         c=st.columns(W5); rag_cell(c[0],row['RAG']); txt(c[1],row['Source'],False,'#0F172A')
-        nbtn(c[2],row['Total'],f"t5tot_{row['Source'][:15]}",sd,f"All — {row['Source']}")
-        nbtn(c[3],row['Won'],f"t5won_{row['Source'][:15]}",sd[sd['Stage']=='Won'],f"Won — {row['Source']}")
-        nbtn(c[4],row['Open'],f"t5opn_{row['Source'][:15]}",sd[sd['Stage']=='Open'],f"Open — {row['Source']}")
-        nbtn(c[5],row['Lost'],f"t5lst_{row['Source'][:15]}",sd[sd['Stage']=='Lost'],f"Lost — {row['Source']}")
-        nbtn(c[6],row['Repeat'],f"t5rep_{row['Source'][:15]}",sd[sd['FollowupStatus']=='Repeat Lead'],f"Repeat — {row['Source']}")
+        nbtn(c[2],row['Total'],f"t5tot_{row['Source'][:15]}",sd,f"All — {row['Source']}", kind='neutral')
+        nbtn(c[3],row['Won'],f"t5won_{row['Source'][:15]}",sd[sd['Stage']=='Won'],f"Won — {row['Source']}", kind='won')
+        nbtn(c[4],row['Open'],f"t5opn_{row['Source'][:15]}",sd[sd['Stage']=='Open'],f"Open — {row['Source']}", kind='act')
+        nbtn(c[5],row['Lost'],f"t5lst_{row['Source'][:15]}",sd[sd['Stage']=='Lost'],f"Lost — {row['Source']}", kind='lost')
+        nbtn(c[6],row['Repeat'],f"t5rep_{row['Source'][:15]}",sd[sd['FollowupStatus']=='Repeat Lead'],f"Repeat — {row['Source']}", kind='lost')
         pill_txt(c[7], f"{row['Win%']}%", row['RAG'])
         if HAS_AMT:
             abtn(c[8], row['AmountWon'], f"t5amt_{row['Source'][:15]}", sd[sd['Stage']=='Won'], f"Won (amount) — {row['Source']}")
@@ -957,11 +1004,11 @@ with tab_src:
     gt5_r=src_summary_df['Repeat'].sum()
     gt5_wp=round(gt5_w/gt5_t*100,1) if gt5_t else 0
     tc5=st.columns(W5); tot_txt(tc5[0],''); tot_txt(tc5[1],'TOTAL')
-    nbtn(tc5[2],gt5_t,'t5_gtot',base,"All leads")
-    nbtn(tc5[3],gt5_w,'t5_gwon',base[base['Stage']=='Won'],"All won")
-    nbtn(tc5[4],gt5_o,'t5_gopn',base[base['Stage']=='Open'],"All open")
-    nbtn(tc5[5],gt5_l,'t5_glst',base[base['Stage']=='Lost'],"All lost")
-    nbtn(tc5[6],gt5_r,'t5_grep',base[base['FollowupStatus']=='Repeat Lead'],"All repeat")
+    nbtn(tc5[2],gt5_t,'t5_gtot',base,"All leads", kind='neutral')
+    nbtn(tc5[3],gt5_w,'t5_gwon',base[base['Stage']=='Won'],"All won", kind='won')
+    nbtn(tc5[4],gt5_o,'t5_gopn',base[base['Stage']=='Open'],"All open", kind='act')
+    nbtn(tc5[5],gt5_l,'t5_glst',base[base['Stage']=='Lost'],"All lost", kind='lost')
+    nbtn(tc5[6],gt5_r,'t5_grep',base[base['FollowupStatus']=='Repeat Lead'],"All repeat", kind='lost')
     pill_txt(tc5[7], f"{gt5_wp}%", rag_win(gt5_wp))
     if HAS_AMT:
         abtn(tc5[8], src_summary_df['AmountWon'].sum(), 't5_gamt', base[base['Stage']=='Won'], "All won (amount)")
@@ -1004,22 +1051,22 @@ with tab_age:
 
     for rep, rd_all, rd, n, pct7, avg_days, rs in hyg3_rows:
         c=st.columns(W3); rag_cell(c[0],rs); txt(c[1],rep,True,'#0F2044')
-        nbtn(c[2],len(rd_all),f"t3rcv_{rep}",rd_all,f"All received — {rep}")
-        nbtn(c[3],n,f"t3tot_{rep}",rd,f"All quoted — {rep}")
+        nbtn(c[2],len(rd_all),f"t3rcv_{rep}",rd_all,f"All received — {rep}", kind='neutral')
+        nbtn(c[3],n,f"t3tot_{rep}",rd,f"All quoted — {rep}", kind='act')
         avg_c = '#B91C1C' if avg_days>15 else ('#92400E' if avg_days>7 else '#0A6640')
         txt(c[4], f"{avg_days}d", bold=True, color=avg_c)
         for i,b in enumerate(BKTS):
-            bd=rd[rd['bkt']==b]; nbtn(c[5+i],len(bd),f"t3b_{rep}_{i}",bd,f"{b} since last followup — {rep}")
+            bd=rd[rd['bkt']==b]; nbtn(c[5+i],len(bd),f"t3b_{rep}_{i}",bd,f"{b} since last followup — {rep}",kind=BKT_KIND[i])
 
     sep()
     tc3=st.columns(W3); tot_txt(tc3[0],''); tot_txt(tc3[1],'TOTAL')
-    nbtn(tc3[2],len(base),'t3_gtot_rcv',base,"All leads")
-    nbtn(tc3[3],len(qcur_base),'t3_gtot',qcur_base,"All in quoted stage")
+    nbtn(tc3[2],len(base),'t3_gtot_rcv',base,"All leads", kind='neutral')
+    nbtn(tc3[3],len(qcur_base),'t3_gtot',qcur_base,"All in quoted stage", kind='act')
     overall_avg = round(qcur_base['quoted_days'].dropna().mean(), 1) if len(qcur_base) else 0
     avg_c = '#B91C1C' if overall_avg>15 else ('#92400E' if overall_avg>7 else '#0A6640')
     txt(tc3[4], f"{overall_avg}d", bold=True, color=avg_c)
     for i,b in enumerate(BKTS):
-        bd=qcur_base[qcur_base['bkt']==b]; nbtn(tc3[5+i],len(bd),f"t3gb_{i}",bd,f"All quoted — {b}")
+        bd=qcur_base[qcur_base['bkt']==b]; nbtn(tc3[5+i],len(bd),f"t3gb_{i}",bd,f"All quoted — {b}",kind=BKT_KIND[i])
 
     st.markdown("<div class='sec'>Active Pipeline Aging</div>", unsafe_allow_html=True)
     st.markdown("<p class='note'>All Open leads bucketed by <b>days since last followup</b>. "
@@ -1047,20 +1094,20 @@ with tab_age:
 
     for rep,rd,n,pct7,avg_fu,rs in act4_rows:
         c=st.columns(W4); rag_cell(c[0],rs); txt(c[1],rep,True,'#0F2044')
-        nbtn(c[2],n,f"t4tot_{rep}",rd,f"All active — {rep}")
+        nbtn(c[2],n,f"t4tot_{rep}",rd,f"All active — {rep}", kind='neutral')
         avg_c='#B91C1C' if avg_fu>15 else ('#92400E' if avg_fu>7 else '#0A6640')
         txt(c[3],f"{avg_fu}d",bold=True,color=avg_c)
         for i,b in enumerate(BKTS):
-            bd=rd[rd['bkt']==b]; nbtn(c[4+i],len(bd),f"t4b_{rep}_{i}",bd,f"{b} since last followup — {rep}")
+            bd=rd[rd['bkt']==b]; nbtn(c[4+i],len(bd),f"t4b_{rep}_{i}",bd,f"{b} since last followup — {rep}",kind=BKT_KIND[i])
 
     sep()
     tc4=st.columns(W4); tot_txt(tc4[0],''); tot_txt(tc4[1],'TOTAL')
-    nbtn(tc4[2],len(act_base),'t4_gtot',act_base,"All active leads")
+    nbtn(tc4[2],len(act_base),'t4_gtot',act_base,"All active leads", kind='neutral')
     overall_act_avg=round(act_base['last_fu_age'].dropna().mean(),1) if 'last_fu_age' in act_base.columns and len(act_base) else 0
     avg_c='#B91C1C' if overall_act_avg>15 else ('#92400E' if overall_act_avg>7 else '#0A6640')
     txt(tc4[3],f"{overall_act_avg}d",bold=True,color=avg_c)
     for i,b in enumerate(BKTS):
-        bd=act_base[act_base['bkt']==b]; nbtn(tc4[4+i],len(bd),f"t4gb_{i}",bd,f"All active — {b}")
+        bd=act_base[act_base['bkt']==b]; nbtn(tc4[4+i],len(bd),f"t4gb_{i}",bd,f"All active — {b}",kind=BKT_KIND[i])
 
 # ────────────────────────────────────────────────────────────────────────────
 # TAB — AMOUNT HYGIENE (new: quoted / won leads missing AmountPaid)
@@ -1132,21 +1179,21 @@ with tab_hyg:
         for r in hyg_rows:
             c = st.columns(WH)
             rag_cell(c[0], r['RAG']); txt(c[1], r['Rep'], True, '#0F2044')
-            nbtn(c[2], r['Quoted Total'], f"hq_tot_{r['Rep']}", r['rq'], f"All quoted — {r['Rep']}")
-            nbtn(c[3], r['Quoted Missing'], f"hq_mis_{r['Rep']}", r['rqm'], f"Quoted, no amount — {r['Rep']}")
+            nbtn(c[2], r['Quoted Total'], f"hq_tot_{r['Rep']}", r['rq'], f"All quoted — {r['Rep']}", kind='neutral')
+            nbtn(c[3], r['Quoted Missing'], f"hq_mis_{r['Rep']}", r['rqm'], f"Quoted, no amount — {r['Rep']}", kind='lost')
             pill_txt(c[4], f"{r['Quoted Missing %']}%", rag_hygiene(r['Quoted Missing %']))
-            nbtn(c[5], r['Won Total'], f"hw_tot_{r['Rep']}", r['rw'], f"All won — {r['Rep']}")
-            nbtn(c[6], r['Won Missing'], f"hw_mis_{r['Rep']}", r['rwm'], f"Won, no amount — {r['Rep']}")
+            nbtn(c[5], r['Won Total'], f"hw_tot_{r['Rep']}", r['rw'], f"All won — {r['Rep']}", kind='neutral')
+            nbtn(c[6], r['Won Missing'], f"hw_mis_{r['Rep']}", r['rwm'], f"Won, no amount — {r['Rep']}", kind='lost')
             pill_txt(c[7], f"{r['Won Missing %']}%", rag_hygiene(r['Won Missing %']))
 
         sep()
         tch = st.columns(WH)
         tot_txt(tch[0],''); tot_txt(tch[1],'TOTAL')
-        nbtn(tch[2], len(qcur_base2), 'hg_qtot', qcur_base2, "All quoted leads")
-        nbtn(tch[3], len(q_missing), 'hg_qmis', q_missing, "All quoted, no amount")
+        nbtn(tch[2], len(qcur_base2), 'hg_qtot', qcur_base2, "All quoted leads", kind='neutral')
+        nbtn(tch[3], len(q_missing), 'hg_qmis', q_missing, "All quoted, no amount", kind='lost')
         pill_txt(tch[4], f"{pq}%", rag_hygiene(pq))
-        nbtn(tch[5], len(won_base2), 'hg_wtot', won_base2, "All won leads")
-        nbtn(tch[6], len(w_missing), 'hg_wmis', w_missing, "All won, no amount")
+        nbtn(tch[5], len(won_base2), 'hg_wtot', won_base2, "All won leads", kind='neutral')
+        nbtn(tch[6], len(w_missing), 'hg_wmis', w_missing, "All won, no amount", kind='lost')
         pill_txt(tch[7], f"{pw}%", rag_hygiene(pw))
 
         chc1, chc2 = st.columns(2)
