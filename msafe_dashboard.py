@@ -159,6 +159,7 @@ LOST_S   = ['Not-Interested','Not Search Our Product','Regret',
             'Repeat Lead','Rental Period Less Than 7 Days']
 QUOTED_S = ['Quoted In Follow Up','Quoted Order In Pipeline','Quote In Progress',
             'Interested Quote Sent','Quoted Not Picking Call','Quoted Project On Hold']
+QUOTATION_S = QUOTED_S + WON_S + ['Quoted Order Lost']
 WON_ORDER  = ['Quoted Order Won And Executed']
 ACT_ORDER  = ['Call Back','RNR Call Back','MS Requirement Call Back',
               'Interested Catalogue Sent','Interested Quote Sent',
@@ -545,18 +546,19 @@ st.markdown(
     unsafe_allow_html=True)
 
 # ── KPI CARDS ──────────────────────────────────────────────────────────────────
-q_tot   = base[base['FollowupStatus'].isin(QUOTED_S + WON_S)]
+q_tot   = base[base['FollowupStatus'].isin(QUOTATION_S)]
 q2w     = round(won/len(q_tot)*100, 1) if len(q_tot) else 0
 rep_leads = base[~base['is_admin'] & (base['Rep'] != 'Unassigned')]
 unassigned = base[base['Rep']=='Unassigned']
 
-kc = st.columns(7)
+kc = st.columns(8)
 kpi_defs = [
     ('Total Leads',   f'{total:,}',   '',  base,                              "All leads"),
     ('Won',           f'{won:,}',     'g', base[base['Stage']=='Won'],         "Won leads"),
     ('Open',          f'{opn:,}',     'a', base[base['Stage']=='Open'],        "Open leads"),
     ('Lost',          f'{lost:,}',    'r', base[base['Stage']=='Lost'],        "Lost leads"),
     ('Repeat Leads',  f'{repeats:,}', 'r', base[base['FollowupStatus']=='Repeat Lead'], "Repeat leads"),
+    ('Quotations Sent', f'{len(q_tot):,}', 'b', q_tot, "Quotations sent (all quoted stages + Won + Quoted Order Lost)"),
     ('Win Rate',      f'{wr}%',       'b', None,                              None),
     ('Quote → Win',   f'{q2w}%',      'g', None,                              None),
 ]
@@ -595,7 +597,7 @@ if total == 0:
 qcur_all = base[base['FollowupStatus'].isin(QUOTED_S)]
 qw_all   = base[base['FollowupStatus'].isin(WON_S)]
 ql_all   = base[base['FollowupStatus'].isin(['Quoted Order Lost'])]
-ALL_Q_S  = QUOTED_S + WON_S + ['Quoted Order Lost']
+ALL_Q_S  = QUOTATION_S
 qa_all   = base[base['FollowupStatus'].isin(ALL_Q_S)]
 
 rep_summary_rows = []
