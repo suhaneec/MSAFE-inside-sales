@@ -256,36 +256,16 @@ def load(fb):
         df['Source'] = 'Other'
     df['Source_group'] = df['Source'].apply(lambda x: x if x in MAIN_SRC else 'Other')
 
-    def _extract_rep_name(val):
-        if pd.isna(val) or str(val).strip() in ('', 'nan'): return None
-        s = str(val).strip()
-        if '(' in s and ')' in s: return s[s.index('(')+1:s.index(')')].strip()
-        return s.replace('50988-','').strip()
-
     def _extract_lastfu_name(val):
         if pd.isna(val) or str(val).strip() in ('', 'nan'): return None
         return str(val).strip().replace('50988-','').strip()
 
-    if 'assigneduser' in df.columns:
-        df['Rep'] = df['assigneduser'].apply(_extract_rep_name)
-        if 'LastFollowupCreatedByName' in df.columns:
-            fallback_mask = df['Rep'].isna()
-            df.loc[fallback_mask, 'Rep'] = df.loc[fallback_mask, 'LastFollowupCreatedByName'].apply(_extract_lastfu_name)
-        df['Rep'] = df['Rep'].fillna('Unassigned')
-    elif 'LastFollowupCreatedByName' in df.columns:
+    # Rep = lead owner = whoever is on LastFollowupCreatedByName. No assigneduser
+    # fallback and no login-name remapping — this column is the single source of truth.
+    if 'LastFollowupCreatedByName' in df.columns:
         df['Rep'] = df['LastFollowupCreatedByName'].apply(_extract_lastfu_name).fillna('Unassigned')
     else:
         df['Rep'] = 'Unassigned'
-
-    if 'assigneduser' in df.columns and 'LastFollowupCreatedByName' in df.columns:
-        has_both = df['assigneduser'].notna() & df['LastFollowupCreatedByName'].notna()
-        login_to_full = {}
-        for _, row in df[has_both].iterrows():
-            login = _extract_lastfu_name(row['LastFollowupCreatedByName'])
-            full  = _extract_rep_name(row['assigneduser'])
-            if login and full and login != full:
-                login_to_full[login] = full
-        df['Rep'] = df['Rep'].apply(lambda r: login_to_full.get(r, r))
 
     df['is_admin'] = df['Rep'].isin(['msafe947362', 'Admin'])
     df.loc[df['Rep'].str.lower().str.contains('admin', na=False), 'is_admin'] = True
