@@ -1015,6 +1015,113 @@ with tab_src:
     st.download_button("⬇ Download Source Table", src_summary_df.drop(columns='RAG').to_csv(index=False),
                         "source_performance.csv","text/csv",key="dl_t5")
 
+    # ── Source × Date trend ────────────────────────────────────────────────
+    st.markdown("<div class='sec'>Source Trend Over Time</div>", unsafe_allow_html=True)
+    if not has_dates or 'CreatedOn' not in base.columns or base['CreatedOn'].notna().sum() == 0:
+        st.info("No Created date available in this export — trend table unavailable.")
+    else:
+        dt_base = base.dropna(subset=['CreatedOn']).copy()
+        span_days = (dt_base['CreatedOn'].max() - dt_base['CreatedOn'].min()).days
+        default_gran = 'Day' if span_days <= 31 else ('Week' if span_days <= 180 else 'Month')
+        gran = st.radio("Granularity", ['Day', 'Week', 'Month'],
+                         index=['Day', 'Week', 'Month'].index(default_gran),
+                         horizontal=True, key='src_trend_gran')
+        st.markdown("<p class='note'>Leads created per source, bucketed across the filtered date range. "
+                    "Darker cell = higher volume for that period.</p>", unsafe_allow_html=True)
+
+        if gran == 'Day':
+            sort_key = dt_base['CreatedOn'].dt.normalize()
+            dt_base['period'] = dt_base['CreatedOn'].dt.strftime('%d %b')
+        elif gran == 'Week':
+            sort_key = dt_base['CreatedOn'] - pd.to_timedelta(dt_base['CreatedOn'].dt.weekday, unit='D')
+            dt_base['period'] = 'Wk of ' + sort_key.dt.strftime('%d %b')
+        else:
+            sort_key = dt_base['CreatedOn'].dt.to_period('M').dt.to_timestamp()
+            dt_base['period'] = dt_base['CreatedOn'].dt.strftime('%b %Y')
+
+        period_sort = (dt_base.assign(_s=sort_key)
+                        .groupby('period')['_s'].min().sort_values().index.tolist())
+
+        ct2 = pd.crosstab(dt_base['Source'], dt_base['period'])
+        ct2 = ct2.reindex(columns=period_sort, fill_value=0)
+        ct2 = ct2.reindex(index=src_summary_df['Source'].tolist(), fill_value=0)
+        ct2['Total'] = ct2.sum(axis=1)
+        ct2 = ct2.sort_values('Total', ascending=False)
+        tot_row = ct2.sum(axis=0); tot_row.name = 'TOTAL'
+        ct2 = pd.concat([ct2, tot_row.to_frame().T])
+
+        def sty_dt(df):
+            s = pd.DataFrame('', index=df.index, columns=df.columns)
+            num_cols = [c for c in df.columns if c != 'Total']
+            body_idx = [i for i in df.index if i != 'TOTAL']
+            vmax = df.loc[body_idx, num_cols].values.max() if num_cols and body_idx else 0
+            vmax = vmax if vmax and vmax > 0 else 1
+            for c in num_cols:
+                s[c] = df[c].apply(lambda v: (
+                    f'background:rgba(15,32,68,{min(v/vmax,1)*0.55:.2f});'
+                    f'color:{"white" if v/vmax>0.5 else "#0F172A"};font-weight:600')
+                    if isinstance(v, (int, float)) and v > 0 else 'color:#CBD5E1')
+            if 'Total' in df.columns:
+                s['Total'] = 'background:#EFF6FF;color:#1D4ED8;font-weight:800'
+            if 'TOTAL' in df.index:
+                s.loc['TOTAL'] = 'background:#0F2044;color:#FFFFFF;font-weight:800'
+            return s
+
+        st.dataframe(
+            ct2.style.set_properties(**{'color': '#0F172A', 'font-size': '12px'})
+               .apply(sty_dt, axis=None)
+               .format(lambda x: '—' if isinstance(x, (int, float)) and x == 0 else f'{int(x):,}'),
+            use_container_width=True, height=min(46*len(ct2)+40, 480))
+        st.download_button("⬇ Download Source Trend", ct2.to_csv(), "source_trend.csv", "text/csv",
+                            key="dl_src_trend")
+
+    # ── Source × Status ────────────────────────────────────────────────────
+    st.markdown("<div class='sec'>Source × Lead Status</div>", unsafe_allow_html=True)
+    st.markdown("<p class='note'>Count of leads per source across every follow-up status. "
+                "🟢 Won stage &nbsp;&nbsp; 🟡 Active stage &nbsp;&nbsp; 🔴 Lost stage.</p>",
+                unsafe_allow_html=True)
+
+    status_order = (stages_present(base, WON_ORDER, 'Won') +
+                     stages_present(base, ACT_ORDER, 'Open') +
+                     stages_present(base, LOST_ORDER, 'Lost'))
+    status_order = [s for s in status_order if s in base['FollowupStatus'].unique()]
+
+    ct3 = pd.crosstab(base['Source'], base['FollowupStatus'])
+    ct3 = ct3.reindex(columns=status_order, fill_value=0)
+    ct3 = ct3.reindex(index=src_summary_df['Source'].tolist(), fill_value=0)
+    ct3['Total'] = ct3.sum(axis=1)
+    ct3 = ct3.sort_values('Total', ascending=False)
+    tot_row3 = ct3.sum(axis=0); tot_row3.name = 'TOTAL'
+    ct3 = pd.concat([ct3, tot_row3.to_frame().T])
+
+    def status_kind(s):
+        if s in WON_S: return 'won'
+        if s in LOST_S: return 'lost'
+        return 'act'
+
+    def sty_st(df):
+        s = pd.DataFrame('', index=df.index, columns=df.columns)
+        for c in df.columns:
+            if c == 'Total':
+                s[c] = 'background:#EFF6FF;color:#1D4ED8;font-weight:800'
+                continue
+            kind = status_kind(c)
+            bg, fg = {'won': ('#E9F7EF', '#0A6640'), 'lost': ('#FEF2F2', '#B91C1C'),
+                      'act': ('#FFFBEB', '#92400E')}[kind]
+            s[c] = df[c].apply(lambda v: f'background:{bg};color:{fg};font-weight:700'
+                                if isinstance(v, (int, float)) and v > 0 else 'color:#CBD5E1')
+        if 'TOTAL' in df.index:
+            s.loc['TOTAL'] = 'background:#0F2044;color:#FFFFFF;font-weight:800'
+        return s
+
+    st.dataframe(
+        ct3.style.set_properties(**{'color': '#0F172A', 'font-size': '12px'})
+           .apply(sty_st, axis=None)
+           .format(lambda x: '—' if isinstance(x, (int, float)) and x == 0 else f'{int(x):,}'),
+        use_container_width=True, height=min(46*len(ct3)+40, 480))
+    st.download_button("⬇ Download Source × Status", ct3.to_csv(), "source_status.csv", "text/csv",
+                        key="dl_src_status")
+
 # ────────────────────────────────────────────────────────────────────────────
 # TAB — PIPELINE AGING (Table 3 + Table 4)
 # ────────────────────────────────────────────────────────────────────────────
